@@ -1,0 +1,59 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+// SQLite en local. Pour la production, passer provider = "postgresql"
+// et renseigner DATABASE_URL (Neon, Supabase, Railway…).
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String     @id @default(cuid())
+  name         String
+  email        String     @unique
+  passwordHash String
+  createdAt    DateTime   @default(now())
+  assigned     Prospect[] @relation("assigned")
+  created      Prospect[] @relation("created")
+  notes        Note[]
+}
+
+model Prospect {
+  id           String   @id @default(cuid())
+  siren        String   @unique
+  name         String
+  activity     String?
+  city         String?
+  postalCode   String?
+  address      String?
+  department   String?
+  headcount    String?
+  cible        String?
+  signal       String?
+  pitch        String?
+  dirigeant    String?
+  phone        String?
+  email        String?
+  website      String?
+  status       String   @default("a_appeler")
+  nextAction   DateTime?
+  assignedTo   User?    @relation("assigned", fields: [assignedToId], references: [id])
+  assignedToId String?
+  createdBy    User     @relation("created", fields: [createdById], references: [id])
+  createdById  String
+  notes        Note[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Note {
+  id         String   @id @default(cuid())
+  prospect   Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  prospectId String
+  author     User     @relation(fields: [authorId], references: [id])
+  authorId   String
+  content    String
+  createdAt  DateTime @default(now())
+}
