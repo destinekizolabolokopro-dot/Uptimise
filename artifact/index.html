@@ -1,0 +1,750 @@
+<title>Uptimise Prospection</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@1&family=Jost:wght@300;400;500&display=swap">
+<style>
+/* Mise en page : annuaire éditorial (titre fort, panneau de filtres, grille de fiches) + CRM en tableau, fiche en panneau latéral. */
+:root {
+  --bg: #ffffff;
+  --ink: #0c1222;
+  --muted: #566074;
+  --line: #dde2ea;
+  --line-strong: #8791a6;
+  --chip-line: #c5ccd9;
+  --hover-line: #b4bed4;
+  --brand: #14298c;
+  --brand-ink: #ffffff;
+  --brand-dark: #0c1a5e;
+  --panel: #f4f6fa;
+  --card: #ffffff;
+  --danger: #b00020;
+  --danger-bg: #fff4f5;
+  --ok: #0b6b3d;
+  --ok-bg: #e3f4ea;
+  --info-bg: #e7ebfb;
+  --warn: #7a5c00;
+  --warn-bg: #fff8e1;
+  --warn-line: #d9a400;
+  --shadow: rgba(12, 18, 34, .38);
+  --scrim: rgba(12, 18, 34, .45);
+  --font-body: "Jost", "Century Gothic", "Trebuchet MS", sans-serif;
+  --font-display: "Instrument Serif", Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b0f1c; --ink: #e8ebf4; --muted: #9aa3b8; --line: #232b42; --line-strong: #4a5573;
+    --chip-line: #334061; --hover-line: #45527a; --brand: #8ea0ff; --brand-ink: #0b0f1c; --brand-dark: #b9c4ff;
+    --panel: #131a2d; --card: #10162a; --danger: #ff8a9b; --danger-bg: #2a1219; --ok: #6fd6a1; --ok-bg: #10291d;
+    --info-bg: #1b2450; --warn: #ffd36b; --warn-bg: #2b2310; --warn-line: #8a6b12; --shadow: rgba(0,0,0,.6);
+    --scrim: rgba(0,0,0,.6); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0b0f1c; --ink: #e8ebf4; --muted: #9aa3b8; --line: #232b42; --line-strong: #4a5573;
+  --chip-line: #334061; --hover-line: #45527a; --brand: #8ea0ff; --brand-ink: #0b0f1c; --brand-dark: #b9c4ff;
+  --panel: #131a2d; --card: #10162a; --danger: #ff8a9b; --danger-bg: #2a1219; --ok: #6fd6a1; --ok-bg: #10291d;
+  --info-bg: #1b2450; --warn: #ffd36b; --warn-bg: #2b2310; --warn-line: #8a6b12; --shadow: rgba(0,0,0,.6);
+  --scrim: rgba(0,0,0,.6); color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 17px; line-height: 1.5; }
+a { color: var(--brand); }
+button { font: inherit; cursor: pointer; color: inherit; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+.banner { background: var(--brand); color: var(--brand-ink); font-size: 14px; letter-spacing: .04em; text-align: center; padding: 11px 16px; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-inline: clamp(16px, 4vw, 48px); }
+.site-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px 32px; padding-block: 24px; border-bottom: 1px solid var(--line); }
+.logo { font-size: 15px; font-weight: 500; letter-spacing: .32em; text-transform: uppercase; }
+.nav { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 22px; font-size: 15px; letter-spacing: .04em; }
+.tab { background: none; border: 0; padding: 6px 0; color: var(--muted); letter-spacing: .04em; }
+.tab:hover { color: var(--brand); }
+.tab[aria-selected="true"] { color: var(--brand); text-decoration: underline; text-underline-offset: 7px; }
+.tab .badge { font-size: 12px; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--info-bg); color: var(--brand); font-variant-numeric: tabular-nums; }
+.me { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); }
+.me img, .avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; flex: none; }
+
+.hero { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 28px 64px; padding-block: 72px 64px; }
+.hero-main { flex: 2 1 480px; display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+.eyebrow { display: flex; align-items: center; gap: 14px; font-size: 13px; font-weight: 500; letter-spacing: .22em; text-transform: uppercase; color: var(--brand); }
+.eyebrow::before { content: ""; width: 40px; height: 1px; background: var(--brand); }
+h1 { margin: 0; font-weight: 300; font-size: clamp(44px, 7vw, 92px); line-height: .98; letter-spacing: -.035em; text-wrap: balance; }
+h1 span { display: block; }
+.serif { font-family: var(--font-display); font-style: italic; font-weight: 400; letter-spacing: -.01em; color: var(--brand); }
+.lede { flex: 1 1 280px; margin: 0; max-width: 400px; font-size: 19px; line-height: 1.55; color: var(--muted); text-wrap: pretty; }
+
+.panel { background: var(--panel); border-radius: 24px; padding: clamp(18px, 3vw, 36px); display: flex; flex-direction: column; gap: 26px; }
+.grid-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 20px; }
+.field { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.label { font-size: 12px; font-weight: 500; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
+.input { height: 54px; padding: 0 16px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--card); color: var(--ink); font: inherit; width: 100%; }
+textarea.input { height: auto; min-height: 96px; padding: 12px 16px; resize: vertical; }
+.chips { display: flex; flex-wrap: wrap; gap: 10px; }
+.chip { min-height: 44px; padding: 0 18px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--card); color: var(--ink); display: inline-flex; align-items: center; gap: 10px; font-size: 16px; }
+.chip:hover { border-color: var(--brand); }
+.chip .count { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.chip[aria-pressed="true"] { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
+.chip[aria-pressed="true"] .count { color: inherit; opacity: .75; }
+.chip.small { min-height: 36px; padding: 0 14px; font-size: 15px; }
+.subfilter { display: flex; flex-direction: column; gap: 12px; padding: 16px 18px; border-radius: 16px; background: var(--card); border: 1px dashed var(--chip-line); }
+.hint { font-size: 14px; color: var(--muted); }
+.toggle { display: inline-flex; align-items: center; gap: 10px; font-size: 15px; color: var(--muted); cursor: pointer; }
+.toggle input { width: 18px; height: 18px; accent-color: var(--brand); }
+
+.results { padding-block: 56px 0; display: flex; flex-direction: column; gap: 28px; }
+.results-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px 24px; }
+.results-head > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; }
+h2 { margin: 0; font-weight: 300; font-size: clamp(30px, 4vw, 44px); line-height: 1.1; letter-spacing: -.02em; }
+.sub { font-size: 17px; color: var(--muted); }
+.link { background: none; border: 0; padding: 0; min-height: 40px; color: var(--brand); font-size: 16px; text-decoration: underline; text-underline-offset: 4px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(330px, 100%), 1fr)); gap: 24px; }
+.empty { padding: 40px 24px; text-align: center; color: var(--muted); border: 1px dashed var(--chip-line); border-radius: 20px; }
+.more { display: flex; justify-content: center; }
+
+.fiche { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 26px; display: flex; flex-direction: column; gap: 16px; min-width: 0; transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease; }
+.fiche:hover { transform: translateY(-3px); box-shadow: 0 24px 48px -28px var(--shadow); border-color: var(--hover-line); }
+.fiche-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+.cat { font-size: 12px; font-weight: 500; letter-spacing: .16em; text-transform: uppercase; color: var(--brand); }
+.tag { font-size: 12px; letter-spacing: .03em; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--chip-line); color: var(--muted); }
+.tag.mine { border-color: var(--brand); color: var(--brand); }
+.tag.taken { border-color: var(--warn-line); color: var(--warn); background: var(--warn-bg); }
+h3 { margin: 0; font-weight: 400; font-size: 25px; line-height: 1.15; letter-spacing: -.015em; overflow-wrap: anywhere; }
+.meta { font-size: 15px; color: var(--muted); }
+.sep { height: 1px; background: var(--line); }
+.fiche p { margin: 0; font-size: 16px; text-wrap: pretty; }
+.signal { font-size: 14px; font-weight: 500; color: var(--brand-dark); }
+.person { display: flex; gap: 10px; align-items: center; font-size: 15px; }
+.actions { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
+
+.appel { min-height: 54px; padding: 0 18px; border-radius: 12px; background: var(--brand); color: var(--brand-ink); text-decoration: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; transition: filter .2s; }
+.appel:hover { filter: brightness(1.25); color: var(--brand-ink); }
+.appel .num { display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 500; letter-spacing: .04em; font-variant-numeric: tabular-nums; user-select: all; }
+.appel .cta { font-size: 12px; font-weight: 500; letter-spacing: .18em; text-transform: uppercase; }
+.row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.row > :first-child { flex: 1; min-width: 0; }
+.copy { flex: none; min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--chip-line); background: var(--card); font-size: 13px; color: var(--muted); }
+.copy:hover { border-color: var(--brand); color: var(--brand); }
+.mail { min-height: 40px; color: var(--ink); text-decoration: none; display: flex; align-items: center; gap: 12px; font-size: 15px; min-width: 0; }
+.mail span { overflow-wrap: anywhere; min-width: 0; user-select: all; }
+.btn-outline { min-height: 46px; padding: 0 16px; border-radius: 12px; background: var(--card); color: var(--brand); border: 1px solid var(--brand); display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 15px; font-weight: 500; width: 100%; }
+.btn-outline:hover { background: var(--panel); }
+.btn-outline:disabled, .btn:disabled { opacity: .55; cursor: progress; }
+.find { display: flex; flex-wrap: wrap; gap: 6px; }
+.find a { font-size: 13px; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--chip-line); color: var(--ink); text-decoration: none; }
+.find a:hover { border-color: var(--brand); color: var(--brand); }
+.btn { min-height: 50px; padding: 0 22px; border-radius: 12px; background: var(--brand); color: var(--brand-ink); border: 0; font-size: 14px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; }
+.btn:hover { filter: brightness(1.25); }
+.btn.ghost { background: var(--card); color: var(--danger); border: 1px solid var(--danger); text-transform: none; letter-spacing: 0; font-size: 15px; }
+.alert { padding: 12px 16px; border-radius: 12px; background: var(--danger-bg); color: var(--danger); font-size: 15px; }
+.okmsg { color: var(--ok); font-size: 14px; }
+
+/* CRM */
+.page-title { padding-block: 56px 32px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 20px; }
+.page-title h1 { font-size: clamp(40px, 6vw, 72px); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 28px; }
+.stat { background: var(--panel); border-radius: 16px; padding: 16px 18px; border: 1px solid transparent; text-align: left; }
+.stat:hover { border-color: var(--hover-line); }
+.stat[aria-pressed="true"] { border-color: var(--brand); }
+.stat .n { display: block; font-size: 32px; font-weight: 300; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.stat .l { display: block; font-size: 13px; color: var(--muted); }
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 20px; }
+table { width: 100%; border-collapse: collapse; font-size: 15px; }
+th { text-align: left; font-size: 12px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); padding: 14px 16px; border-bottom: 1px solid var(--line); background: var(--panel); white-space: nowrap; }
+td { padding: 14px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+.name-btn { background: none; border: 0; padding: 0; text-align: left; font-weight: 500; color: var(--ink); }
+.name-btn:hover { color: var(--brand); text-decoration: underline; }
+.status { display: inline-block; font-size: 13px; padding: 3px 10px; border-radius: 999px; background: var(--panel); white-space: nowrap; }
+.status.rdv, .status.proposition { background: var(--info-bg); color: var(--brand); }
+.status.signe { background: var(--ok-bg); color: var(--ok); }
+.status.perdu { color: var(--muted); }
+.status.appele { background: var(--warn-bg); color: var(--warn); }
+.who { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.due { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.due.late { color: var(--danger); font-weight: 500; }
+
+/* Panneau fiche */
+.scrim { position: fixed; inset: 0; background: var(--scrim); z-index: 20; }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(560px, 100%); background: var(--bg); z-index: 21; overflow-y: auto; border-left: 1px solid var(--line); box-shadow: -24px 0 48px -24px var(--shadow); padding: calc(env(safe-area-inset-top, 0px) + 24px) clamp(16px, 4vw, 32px) calc(env(safe-area-inset-bottom, 0px) + 32px); display: flex; flex-direction: column; gap: 22px; }
+.drawer-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.drawer h2 { font-size: clamp(28px, 4vw, 38px); overflow-wrap: anywhere; }
+.close { flex: none; width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--chip-line); background: var(--card); font-size: 20px; line-height: 1; }
+.box { border: 1px solid var(--line); border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.box h4 { margin: 0; font-weight: 500; font-size: 13px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); gap: 14px; }
+dl.kv { margin: 0; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 18px; font-size: 15px; }
+dl.kv dt { color: var(--muted); }
+dl.kv dd { margin: 0; overflow-wrap: anywhere; }
+.notes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.notes li { padding: 12px 14px; background: var(--panel); border-radius: 12px; font-size: 15px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.notes .by { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); margin-bottom: 4px; white-space: normal; }
+.notes .avatar { width: 18px; height: 18px; }
+.picker { position: relative; }
+.picker-list { list-style: none; margin: 4px 0 0; padding: 6px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); display: flex; flex-direction: column; gap: 2px; }
+.picker-list button { width: 100%; text-align: left; background: none; border: 0; padding: 8px 10px; border-radius: 8px; display: flex; align-items: center; gap: 10px; }
+.picker-list button:hover { background: var(--panel); }
+.confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 15px; }
+
+.site-footer { margin-top: 88px; padding-block: 28px 44px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; font-size: 14px; color: var(--muted); }
+
+@media (prefers-reduced-motion: reduce) { .fiche, .appel { transition: none; } .fiche:hover { transform: none; } }
+</style>
+
+<div class="banner" role="note" id="banner">Données officielles et publiques · SIRENE, comptes annuels et BODACC</div>
+
+<div class="wrap">
+  <header class="site-header">
+    <div class="logo">[Uptimise]</div>
+    <nav class="nav" role="tablist" aria-label="Sections">
+      <button class="tab" role="tab" id="tab-annuaire" aria-selected="true">Annuaire</button>
+      <button class="tab" role="tab" id="tab-prospects" aria-selected="false">Prospects<span class="badge" id="badge-mine" hidden></span></button>
+      <span class="me" id="me" hidden><img alt="" id="me-avatar"><span id="me-name"></span></span>
+    </nav>
+  </header>
+</div>
+
+<main class="wrap">
+  <section id="view-annuaire">
+    <section class="hero">
+      <div class="hero-main">
+        <div class="eyebrow">Annuaire de prospection</div>
+        <h1><span>Les entreprises</span><span>à appeler,</span><span class="serif">déjà triées.</span></h1>
+      </div>
+      <p class="lede">Choisissez votre zone de chalandise et vos cibles. Ajoutez une entreprise à vos prospects : toute l’équipe voit qui la suit, et personne n’appelle deux fois.</p>
+    </section>
+
+    <section class="panel" aria-label="Filtres">
+      <div class="grid-fields">
+        <div class="field">
+          <label class="label" for="zone">Zone de chalandise</label>
+          <select id="zone" class="input"><option value="">Toute la France</option></select>
+        </div>
+        <div class="field">
+          <label class="label" for="q">Recherche</label>
+          <input id="q" class="input" type="search" placeholder="Nom, secteur, ville, dirigeant" autocomplete="off">
+        </div>
+      </div>
+      <div class="field">
+        <div class="label" id="cibles-titre">Cibles <span id="cibles-all" style="text-transform:none;letter-spacing:0">· toutes affichées</span></div>
+        <div class="chips" role="group" aria-labelledby="cibles-titre" id="cibles"></div>
+      </div>
+      <div class="subfilter" id="signaux-box" hidden>
+        <div class="label" id="signaux-titre">Signaux de difficulté</div>
+        <div class="chips" role="group" aria-labelledby="signaux-titre" id="signaux"></div>
+        <div class="hint" id="signaux-hint"></div>
+      </div>
+      <label class="toggle"><input type="checkbox" id="hide-taken"> Masquer les entreprises déjà suivies par un collègue</label>
+    </section>
+
+    <section class="results" aria-live="polite">
+      <div class="results-head">
+        <div><h2 id="count">Chargement…</h2><div class="sub" id="count-sub"></div></div>
+        <button class="link" id="reset" hidden>Tout réafficher</button>
+      </div>
+      <div class="cards" id="cards"></div>
+      <div class="more"><button class="chip" id="more" hidden>Afficher plus</button></div>
+    </section>
+  </section>
+
+  <section id="view-prospects" hidden>
+    <div class="page-title">
+      <div style="display:flex;flex-direction:column;gap:18px">
+        <div class="eyebrow">CRM partagé</div>
+        <h1>Prospects <span class="serif" style="display:inline">en cours.</span></h1>
+      </div>
+      <div class="chips" role="group" aria-label="Vue" id="vues"></div>
+    </div>
+    <div class="alert" id="crm-off" hidden>Le suivi partagé n’est pas disponible ici : ouvrez la page connecté à claude.ai pour ajouter et suivre des prospects.</div>
+    <div class="stats" id="stats"></div>
+    <div id="table"></div>
+  </section>
+</main>
+
+<div class="wrap">
+  <footer class="site-footer">
+    <span>[Uptimise] · Optimisation des charges</span>
+    <span>Sources : <a href="https://annuaire-entreprises.data.gouv.fr" target="_blank" rel="noreferrer">Annuaire des entreprises</a> · <a href="https://www.bodacc.fr" target="_blank" rel="noreferrer">BODACC</a></span>
+  </footer>
+</div>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="d-name" hidden></aside>
+
+<script>
+(() => {
+  // ------------------------------------------------------------------ Référentiels
+  const CIBLES = [
+    ["difficulte", "Entreprises en difficulté"], ["grandes", "Grandes entreprises"], ["pme", "PME / ETI"],
+    ["tpe", "TPE, commerces, artisans"], ["energie", "Gros consommateurs d’énergie"], ["nouvelles", "Nouvelles sociétés"],
+  ];
+  const CIBLE_HINT = {
+    difficulte: "Pertes ou procédure collective", grandes: "Catégorie INSEE grande entreprise", pme: "20 à 2 000 salariés",
+    tpe: "Indépendants, hors grands groupes et franchises", energie: "Boulangeries, restauration, froid, industrie…",
+    nouvelles: "Sociétés immatriculées ces 6 derniers mois",
+  };
+  const SIGNAUX = [
+    ["pertes", "Résultat net négatif", "Derniers comptes publiés en perte"],
+    ["procedure", "Procédure collective", "Sauvegarde ou redressement judiciaire publié au BODACC (12 mois)"],
+  ];
+  const STATUTS = [
+    ["a_appeler", "À appeler"], ["appele", "Appelé – à relancer"], ["rdv", "RDV pris"],
+    ["proposition", "Proposition envoyée"], ["signe", "Signé"], ["perdu", "Pas intéressé"],
+  ];
+  const DEPTS = [["01","Ain"],["02","Aisne"],["03","Allier"],["04","Alpes-de-Haute-Provence"],["05","Hautes-Alpes"],["06","Alpes-Maritimes"],["07","Ardèche"],["08","Ardennes"],["09","Ariège"],["10","Aube"],["11","Aude"],["12","Aveyron"],["13","Bouches-du-Rhône"],["14","Calvados"],["15","Cantal"],["16","Charente"],["17","Charente-Maritime"],["18","Cher"],["19","Corrèze"],["2A","Corse-du-Sud"],["2B","Haute-Corse"],["21","Côte-d'Or"],["22","Côtes-d'Armor"],["23","Creuse"],["24","Dordogne"],["25","Doubs"],["26","Drôme"],["27","Eure"],["28","Eure-et-Loir"],["29","Finistère"],["30","Gard"],["31","Haute-Garonne"],["32","Gers"],["33","Gironde"],["34","Hérault"],["35","Ille-et-Vilaine"],["36","Indre"],["37","Indre-et-Loire"],["38","Isère"],["39","Jura"],["40","Landes"],["41","Loir-et-Cher"],["42","Loire"],["43","Haute-Loire"],["44","Loire-Atlantique"],["45","Loiret"],["46","Lot"],["47","Lot-et-Garonne"],["48","Lozère"],["49","Maine-et-Loire"],["50","Manche"],["51","Marne"],["52","Haute-Marne"],["53","Mayenne"],["54","Meurthe-et-Moselle"],["55","Meuse"],["56","Morbihan"],["57","Moselle"],["58","Nièvre"],["59","Nord"],["60","Oise"],["61","Orne"],["62","Pas-de-Calais"],["63","Puy-de-Dôme"],["64","Pyrénées-Atlantiques"],["65","Hautes-Pyrénées"],["66","Pyrénées-Orientales"],["67","Bas-Rhin"],["68","Haut-Rhin"],["69","Rhône"],["70","Haute-Saône"],["71","Saône-et-Loire"],["72","Sarthe"],["73","Savoie"],["74","Haute-Savoie"],["75","Paris"],["76","Seine-Maritime"],["77","Seine-et-Marne"],["78","Yvelines"],["79","Deux-Sèvres"],["80","Somme"],["81","Tarn"],["82","Tarn-et-Garonne"],["83","Var"],["84","Vaucluse"],["85","Vendée"],["86","Vienne"],["87","Haute-Vienne"],["88","Vosges"],["89","Yonne"],["90","Territoire de Belfort"],["91","Essonne"],["92","Hauts-de-Seine"],["93","Seine-Saint-Denis"],["94","Val-de-Marne"],["95","Val-d'Oise"],["971","Guadeloupe"],["972","Martinique"],["973","Guyane"],["974","La Réunion"],["976","Mayotte"]];
+  const deptName = (c) => (DEPTS.find((d) => d[0] === c) || [c, c])[1];
+  const cibleLabel = (k) => (CIBLES.find((c) => c[0] === k) || [k, "Prospect"])[1];
+  const statutLabel = (k) => (STATUTS.find((s) => s[0] === k) || [k, k])[1];
+  const STEP = 24;
+
+  // ------------------------------------------------------------------ État
+  const st = {
+    companies: [], generatedAt: null,
+    zone: "", q: "", cibles: [], signaux: [], hideTaken: false, shown: STEP,
+    view: "annuaire", vue: "miens", statut: null,
+    prospects: new Map(), // siren -> doc data
+    db: null, user: null, meId: null, canWrite: true,
+    open: null, notesUnsub: null, notes: [], profiles: {},
+  };
+  try {
+    const saved = JSON.parse(localStorage.getItem("uptimise-filtres") || "{}");
+    if (typeof saved.zone === "string") st.zone = saved.zone;
+    if (Array.isArray(saved.cibles)) st.cibles = saved.cibles.filter((c) => CIBLES.some((x) => x[0] === c));
+    if (Array.isArray(saved.signaux)) st.signaux = saved.signaux;
+    if (saved.vue) st.vue = saved.vue;
+  } catch (e) {}
+  const persist = () => { try { localStorage.setItem("uptimise-filtres", JSON.stringify({ zone: st.zone, cibles: st.cibles, signaux: st.signaux, vue: st.vue })); } catch (e) {} };
+
+  // ------------------------------------------------------------------ Outils DOM
+  const $ = (id) => document.getElementById(id);
+  function h(tag, attrs, ...kids) {
+    const el = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (v === null || v === undefined || v === false) continue;
+      if (k === "class") el.className = v;
+      else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+      else if (k === "text") el.textContent = v;
+      else el.setAttribute(k, v === true ? "" : v);
+    }
+    for (const kid of kids.flat()) if (kid !== null && kid !== undefined && kid !== false) el.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
+    return el;
+  }
+  const svg = (paths) => {
+    const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("width", "18"); s.setAttribute("height", "18");
+    s.setAttribute("fill", "none"); s.setAttribute("stroke", "currentColor"); s.setAttribute("stroke-width", "1.75");
+    s.setAttribute("stroke-linecap", "round"); s.setAttribute("stroke-linejoin", "round"); s.setAttribute("aria-hidden", "true");
+    s.innerHTML = paths; s.style.flex = "none"; return s;
+  };
+  const ICON = {
+    phone: () => svg('<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>'),
+    mail: () => svg('<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/>'),
+    user: () => svg('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>'),
+    plus: () => svg('<path d="M12 5v14M5 12h14"/>'),
+  };
+  const norm = (s) => (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const fmtN = (n) => new Intl.NumberFormat("fr-FR").format(n);
+  const telHref = (p) => "tel:" + p.replace(/[^\d+]/g, "").replace(/^0/, "+33");
+  function copyBtn(text) {
+    return h("button", { class: "copy", type: "button", onclick: async (e) => {
+      const b = e.currentTarget;
+      try { await navigator.clipboard.writeText(text); b.textContent = "Copié"; }
+      catch (err) { const r = document.createRange(); r.selectNodeContents(b.previousElementSibling); const s = getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent = "Sélectionné"; }
+      setTimeout(() => (b.textContent = "Copier"), 1600);
+    } }, "Copier");
+  }
+  function searchLinks(c) {
+    const both = encodeURIComponent(`${c.name} ${c.city || ""}`.trim());
+    const who = encodeURIComponent(c.name);
+    return [
+      ["Google", `https://www.google.com/search?q=${both}+t%C3%A9l%C3%A9phone`],
+      ["Maps", `https://www.google.com/maps/search/${both}`],
+      ["Pages Jaunes", `https://www.pagesjaunes.fr/annuaire/chercherlespros?quoiqui=${who}&ou=${encodeURIComponent(c.city || "")}`],
+      ["LinkedIn", `https://www.linkedin.com/search/results/companies/?keywords=${who}`],
+      ["Societe.com", `https://www.societe.com/cgi-bin/search?champs=${c.siren}`],
+      ["Fiche officielle", `https://annuaire-entreprises.data.gouv.fr/entreprise/${c.siren}`],
+    ];
+  }
+  const findRow = (c) => h("div", { class: "find", "aria-label": "Trouver le téléphone et le mail" },
+    searchLinks(c).map(([l, href]) => h("a", { href, target: "_blank", rel: "noreferrer" }, l)));
+
+  // ------------------------------------------------------------------ Personnes
+  async function resolve(ids) {
+    const list = [...new Set(ids.filter(Boolean))];
+    if (!st.user || !list.length) return;
+    const ps = await st.user.profiles(list);
+    let changed = false;
+    for (const id of list) if (!st.profiles[id] || st.profiles[id].name !== ps[id].name) { st.profiles[id] = ps[id]; changed = true; }
+    return changed;
+  }
+  const personName = (id) => (id === st.meId ? "Moi" : (st.profiles[id] && st.profiles[id].name) || "Un collègue");
+  const personChip = (id) => {
+    const p = st.profiles[id];
+    return h("span", { class: "who" }, p ? h("img", { class: "avatar", src: p.avatarUrl, alt: "" }) : null, personName(id));
+  };
+
+  // ------------------------------------------------------------------ Annuaire
+  function filtered(ignoreCibles) {
+    const q = norm(st.q).split(/\s+/).filter(Boolean);
+    return st.companies.filter((c) => {
+      if (st.zone && c.department !== st.zone) return false;
+      if (!ignoreCibles && st.cibles.length && !st.cibles.includes(c.cible)) return false;
+      if (!ignoreCibles && c.cible === "difficulte" && st.signaux.length && !st.signaux.includes(c.sig)) return false;
+      if (st.hideTaken) { const p = st.prospects.get(c.siren); if (p && p.assignedTo && p.assignedTo !== st.meId) return false; }
+      if (q.length) { const hay = c._hay; if (!q.every((w) => hay.includes(w))) return false; }
+      return true;
+    });
+  }
+
+  function renderFilters() {
+    const base = filtered(true);
+    const counts = {};
+    for (const c of base) counts[c.cible] = (counts[c.cible] || 0) + 1;
+    $("cibles").replaceChildren(...CIBLES.map(([k, l]) => h("button", {
+      class: "chip", type: "button", title: CIBLE_HINT[k], "aria-pressed": String(st.cibles.includes(k)),
+      onclick: () => { st.cibles = st.cibles.includes(k) ? st.cibles.filter((x) => x !== k) : [...st.cibles, k]; if (!st.cibles.includes("difficulte")) st.signaux = []; st.shown = STEP; persist(); render(); },
+    }, h("span", {}, l), h("span", { class: "count" }, fmtN(counts[k] || 0)))));
+    $("cibles-all").hidden = st.cibles.length > 0;
+    const showSig = st.cibles.includes("difficulte");
+    $("signaux-box").hidden = !showSig;
+    if (showSig) {
+      $("signaux").replaceChildren(...SIGNAUX.map(([k, l]) => h("button", {
+        class: "chip small", type: "button", "aria-pressed": String(st.signaux.includes(k)),
+        onclick: () => { st.signaux = st.signaux.includes(k) ? st.signaux.filter((x) => x !== k) : [...st.signaux, k]; st.shown = STEP; persist(); render(); },
+      }, l)));
+      $("signaux-hint").textContent = st.signaux.length ? SIGNAUX.filter((s) => st.signaux.includes(s[0])).map((s) => s[2]).join(" · ") : "Aucun signal choisi : les deux sont appliqués.";
+    }
+  }
+
+  function card(c) {
+    const p = st.prospects.get(c.siren);
+    const mine = p && p.assignedTo === st.meId;
+    const meta = [c.activity, [c.postalCode, c.city].filter(Boolean).join(" "), c.headcount].filter(Boolean).join(" · ");
+    let tag;
+    if (p) tag = h("span", { class: "tag " + (mine ? "mine" : p.assignedTo ? "taken" : "") },
+      (mine ? "Mon prospect" : p.assignedTo ? "Suivi par " + personName(p.assignedTo) : "Dans le CRM") + " · " + statutLabel(p.status));
+    else tag = h("span", { class: "tag" }, "SIREN " + c.siren);
+
+    const actions = h("div", { class: "actions" });
+    if (p && p.phone) actions.append(h("div", { class: "row" },
+      h("a", { class: "appel", href: telHref(p.phone) }, h("span", { class: "num" }, ICON.phone(), h("span", {}, p.phone)), h("span", { class: "cta" }, "Appeler")),
+      copyBtn(p.phone)));
+    if (p && p.email) actions.append(h("div", { class: "row" }, h("a", { class: "mail", href: "mailto:" + p.email }, ICON.mail(), h("span", {}, p.email)), copyBtn(p.email)));
+    if (!p) actions.append(h("button", { class: "btn-outline", type: "button", disabled: !st.db || !st.canWrite, onclick: (e) => claim(c, e.currentTarget) },
+      ICON.plus(), st.db ? "Ajouter à mes prospects" : "Connectez-vous pour suivre"));
+    else actions.append(h("button", { class: "btn-outline", type: "button", onclick: () => openDrawer(c.siren) }, p.phone ? "Ouvrir la fiche" : "Renseigner le téléphone et le mail"));
+    if (!p || !p.phone) actions.append(findRow(c));
+
+    return h("article", { class: "fiche" },
+      h("div", { class: "fiche-top" }, h("span", { class: "cat" }, cibleLabel(c.cible)), tag),
+      h("div", { style: "display:flex;flex-direction:column;gap:6px" }, h("h3", {}, c.name), meta ? h("div", { class: "meta" }, meta) : null),
+      h("div", { class: "sep" }),
+      c.signal ? h("div", { class: "signal" }, c.signal) : null,
+      h("p", {}, c.pitch),
+      c.dirigeant ? h("div", { class: "person" }, ICON.user(), h("span", {}, c.dirigeant)) : null,
+      actions);
+  }
+
+  function renderAnnuaire() {
+    renderFilters();
+    if (!st.companies.length) return;
+    const list = filtered(false);
+    $("count").textContent = `${fmtN(list.length)} entreprise${list.length > 1 ? "s" : ""}`;
+    $("count-sub").textContent = (st.zone ? `${st.zone} · ${deptName(st.zone)}` : "Toute la France") + (st.q ? ` · « ${st.q} »` : "");
+    $("reset").hidden = !(st.zone || st.q || st.cibles.length || st.hideTaken);
+    const cards = list.slice(0, st.shown).map(card);
+    $("cards").replaceChildren(...(cards.length ? cards : [h("div", { class: "empty", style: "grid-column:1/-1" }, "Aucune entreprise ne correspond à ces critères. Élargissez la zone ou les cibles.")]));
+    $("more").hidden = list.length <= st.shown;
+    $("more").textContent = `Afficher plus (${fmtN(list.length - st.shown)} restantes)`;
+  }
+
+  // ------------------------------------------------------------------ CRM : écriture
+  const now = () => new Date().toISOString();
+  async function claim(c, btn) {
+    if (!st.db) return;
+    btn.disabled = true; btn.lastChild.textContent = "Ajout…";
+    const ref = st.db.doc("prospects/" + c.siren);
+    try {
+      const snap = await ref.get();
+      if (snap.exists) {
+        if (!snap.data().assignedTo) await ref.update({ assignedTo: st.meId, updatedAt: now() });
+      } else {
+        await ref.set({
+          siren: c.siren, name: c.name, activity: c.activity || null, city: c.city || null, postalCode: c.postalCode || null,
+          address: c.address || null, department: c.department || null, headcount: c.headcount || null, cible: c.cible,
+          signal: c.signal || null, pitch: c.pitch || null, dirigeant: c.dirigeant || null,
+          status: "a_appeler", assignedTo: st.meId, createdBy: st.meId, createdAt: now(), updatedAt: now(),
+          phone: null, email: null, website: null, nextAction: null,
+        });
+      }
+    } catch (e) {
+      writeFailed(e);
+      btn.disabled = false; btn.lastChild.textContent = "Ajouter à mes prospects";
+    }
+  }
+  function writeFailed(e) {
+    if (e && e.code === "invalid_argument") { st.canWrite = false; render(); }
+    console.warn(e);
+  }
+
+  // ------------------------------------------------------------------ CRM : tableau
+  function renderProspects() {
+    const all = [...st.prospects.values()];
+    const scoped = all.filter((p) => st.vue === "equipe" ? true : st.vue === "libres" ? !p.assignedTo : p.assignedTo === st.meId);
+    $("vues").replaceChildren(...[["miens", "Mes prospects"], ["equipe", "Toute l’équipe"], ["libres", "Non attribués"]].map(([k, l]) =>
+      h("button", { class: "chip small", type: "button", "aria-pressed": String(st.vue === k), onclick: () => { st.vue = k; st.statut = null; persist(); render(); } }, l)));
+    $("stats").replaceChildren(...STATUTS.map(([k, l]) => h("button", {
+      class: "stat", type: "button", "aria-pressed": String(st.statut === k), onclick: () => { st.statut = st.statut === k ? null : k; render(); },
+    }, h("span", { class: "n" }, fmtN(scoped.filter((p) => p.status === k).length)), h("span", { class: "l" }, l))));
+
+    const today = new Date().toISOString().slice(0, 10);
+    const rows = scoped.filter((p) => !st.statut || p.status === st.statut).sort((a, b) =>
+      (a.nextAction || "9999") < (b.nextAction || "9999") ? -1 : (a.nextAction || "9999") > (b.nextAction || "9999") ? 1 : (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+    if (!st.db) { $("crm-off").hidden = false; $("table").replaceChildren(); return; }
+    $("crm-off").hidden = true;
+    if (!rows.length) {
+      $("table").replaceChildren(h("div", { class: "empty" }, st.vue === "miens" && !st.statut
+        ? "Aucun prospect pour l’instant. Dans l’annuaire, cliquez sur « Ajouter à mes prospects » pour commencer votre liste."
+        : "Aucun prospect dans cette vue."));
+      return;
+    }
+    $("table").replaceChildren(h("div", { class: "table-wrap" }, h("table", {},
+      h("thead", {}, h("tr", {}, ["Entreprise", "Cible", "Statut", "Suivi par", "Téléphone", "Prochaine action"].map((t) => h("th", {}, t)))),
+      h("tbody", {}, rows.map((p) => h("tr", {},
+        h("td", {}, h("button", { class: "name-btn", type: "button", onclick: () => openDrawer(p.siren) }, p.name), h("div", { class: "hint" }, [p.postalCode, p.city].filter(Boolean).join(" "))),
+        h("td", {}, cibleLabel(p.cible)),
+        h("td", {}, h("span", { class: "status " + p.status }, statutLabel(p.status))),
+        h("td", {}, p.assignedTo ? personChip(p.assignedTo) : "—"),
+        h("td", { style: "white-space:nowrap" }, p.phone || "—"),
+        h("td", {}, p.nextAction ? h("span", { class: "due" + (p.nextAction < today && !["signe", "perdu"].includes(p.status) ? " late" : "") }, new Date(p.nextAction + "T12:00").toLocaleDateString("fr-FR")) : "—"),
+      ))))));
+  }
+
+  // ------------------------------------------------------------------ Fiche (panneau)
+  function openDrawer(siren) {
+    st.open = siren;
+    if (st.notesUnsub) st.notesUnsub();
+    st.notes = [];
+    if (st.db) {
+      st.notesUnsub = st.db.collection("prospects/" + siren + "/notes").orderBy("createdAt", "desc").limit(200).onSnapshot(async (snap) => {
+        st.notes = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        await resolve(st.notes.map((n) => n.author));
+        renderNotes();
+      }, (e) => console.warn(e));
+    }
+    $("scrim").hidden = false; $("drawer").hidden = false;
+    document.body.style.overflow = "hidden";
+    renderDrawer();
+    $("drawer").querySelector(".close").focus();
+  }
+  function closeDrawer() {
+    st.open = null;
+    if (st.notesUnsub) { st.notesUnsub(); st.notesUnsub = null; }
+    $("scrim").hidden = true; $("drawer").hidden = true; document.body.style.overflow = "";
+  }
+  $("scrim").addEventListener("click", closeDrawer);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && st.open) closeDrawer(); });
+
+  function renderDrawer() {
+    const p = st.prospects.get(st.open);
+    const d = $("drawer");
+    if (!p) { closeDrawer(); return; }
+    // Les champs en cours d'édition sont conservés quand une mise à jour arrive d'un collègue.
+    const active = document.activeElement && d.contains(document.activeElement) ? document.activeElement.id : null;
+    if (active && ["d-phone", "d-email", "d-website", "d-note", "d-assign-q"].includes(active) && d.dataset.siren === p.siren) {
+      renderNotes(); return;
+    }
+    d.dataset.siren = p.siren;
+    const ro = !st.canWrite;
+    const field = (id, label, value, type, ph) => h("div", { class: "field" }, h("label", { class: "label", for: id }, label),
+      h("input", { id, class: "input", type, value: value || "", placeholder: ph, disabled: ro }));
+
+    const contact = h("section", { class: "box" }, h("h4", {}, "Contact"));
+    if (p.phone) contact.append(h("div", { class: "row" }, h("a", { class: "appel", href: telHref(p.phone) }, h("span", { class: "num" }, ICON.phone(), h("span", {}, p.phone)), h("span", { class: "cta" }, "Appeler")), copyBtn(p.phone)));
+    else contact.append(h("p", { class: "hint", style: "margin:0" }, "Pas encore de numéro : cherchez-le, puis renseignez-le ci-dessous pour toute l’équipe."));
+    if (p.email) contact.append(h("div", { class: "row" }, h("a", { class: "mail", href: "mailto:" + p.email }, ICON.mail(), h("span", {}, p.email)), copyBtn(p.email)));
+    contact.append(findRow(p));
+
+    const status = h("select", { id: "d-status", class: "input", disabled: ro }, STATUTS.map(([k, l]) => h("option", { value: k, selected: p.status === k }, l)));
+    const msg = h("span", { class: "okmsg", role: "status" }, st.flash || "");
+    const save = h("button", { class: "btn", type: "submit", disabled: ro }, "Enregistrer");
+    const form = h("form", { class: "box", onsubmit: async (e) => {
+      e.preventDefault();
+      save.disabled = true;
+      try {
+        await st.db.doc("prospects/" + p.siren).update({
+          status: $("d-status").value, phone: $("d-phone").value.trim() || null, email: $("d-email").value.trim() || null,
+          website: $("d-website").value.trim() || null, nextAction: $("d-next").value || null, updatedAt: now(),
+        });
+        document.activeElement && document.activeElement.blur();
+        st.flash = "Fiche enregistrée"; renderDrawer();
+        setTimeout(() => { st.flash = ""; if (st.open) renderDrawer(); }, 2500);
+      } catch (err) { msg.textContent = ""; writeFailed(err); }
+      save.disabled = false;
+    } },
+      h("h4", {}, "Suivi"),
+      h("div", { class: "two" },
+        h("div", { class: "field" }, h("label", { class: "label", for: "d-status" }, "Statut"), status),
+        field("d-next", "Prochaine action", p.nextAction, "date"),
+        field("d-phone", "Téléphone", p.phone, "tel", "04 00 00 00 00"),
+        field("d-email", "E-mail", p.email, "email", "contact@…"),
+      ),
+      field("d-website", "Site web", p.website, "url", "https://…"),
+      h("div", { class: "row", style: "justify-content:space-between" }, msg, save));
+
+    // Attribution
+    const assign = h("section", { class: "box" }, h("h4", {}, "Suivi par"),
+      h("div", {}, p.assignedTo ? personChip(p.assignedTo) : h("span", { class: "hint" }, "Personne pour l’instant")));
+    const btns = h("div", { class: "chips" });
+    if (p.assignedTo !== st.meId) btns.append(h("button", { class: "chip small", type: "button", disabled: ro, onclick: () => setAssignee(p.siren, st.meId) }, "Me l’attribuer"));
+    if (p.assignedTo) btns.append(h("button", { class: "chip small", type: "button", disabled: ro, onclick: () => setAssignee(p.siren, null) }, "Libérer"));
+    assign.append(btns);
+    if (st.user && !ro) {
+      const list = h("ul", { class: "picker-list", hidden: true });
+      const input = h("input", { id: "d-assign-q", class: "input", type: "search", placeholder: "Attribuer à un collègue : tapez un nom", autocomplete: "off" });
+      const show = (hits) => {
+        list.replaceChildren(...hits.filter((x) => x.id !== p.assignedTo).map((hit) => h("li", {}, h("button", { type: "button", onclick: () => { setAssignee(p.siren, hit.id); } },
+          h("img", { class: "avatar", src: hit.avatarUrl, alt: "" }), h("span", {}, hit.name)))));
+        list.hidden = !list.children.length;
+      };
+      input.addEventListener("focus", async () => show(await st.user.search("")));
+      input.addEventListener("input", async () => show(await st.user.search(input.value)));
+      assign.append(h("div", { class: "picker" }, input, list));
+    }
+
+    const why = h("section", { class: "box" }, h("h4", {}, "Pourquoi l’appeler"),
+      p.signal ? h("div", { class: "signal" }, p.signal) : null, p.pitch ? h("p", { style: "margin:0" }, p.pitch) : null);
+    const kv = h("dl", { class: "kv" });
+    const add = (k, v) => { if (v) kv.append(h("dt", {}, k), h("dd", {}, v)); };
+    add("SIREN", p.siren); add("Dirigeant", p.dirigeant); add("Adresse", p.address); add("Effectif", p.headcount);
+    add("Ajouté le", p.createdAt ? new Date(p.createdAt).toLocaleDateString("fr-FR") : null);
+    const fiche = h("section", { class: "box" }, h("h4", {}, "Fiche entreprise"), kv);
+
+    const notes = h("section", { class: "box" }, h("h4", {}, "Notes d’appel"),
+      h("form", { class: "field", onsubmit: async (e) => {
+        e.preventDefault();
+        const ta = $("d-note"); const text = ta.value.trim(); if (!text) return;
+        const b = e.currentTarget.querySelector("button"); b.disabled = true;
+        try {
+          await st.db.collection("prospects/" + p.siren + "/notes").add({ author: st.meId, content: text.slice(0, 4000), createdAt: now() });
+          await st.db.doc("prospects/" + p.siren).update({ updatedAt: now() });
+          ta.value = "";
+        } catch (err) { writeFailed(err); }
+        b.disabled = false;
+      } },
+        h("label", { class: "label", for: "d-note" }, "Nouvelle note"),
+        h("textarea", { id: "d-note", class: "input", placeholder: "Compte rendu d’appel, interlocuteur, objections, charges à étudier…", disabled: ro }),
+        h("button", { class: "btn", type: "submit", disabled: ro }, "Ajouter la note")),
+      h("ul", { class: "notes", id: "d-notes" }));
+
+    const confirm = h("div", { class: "confirm", hidden: true },
+      h("span", {}, "Retirer cette entreprise du CRM pour toute l’équipe ?"),
+      h("button", { class: "btn ghost", type: "button", onclick: () => removeProspect(p.siren) }, "Oui, retirer"),
+      h("button", { class: "link", type: "button", onclick: () => { confirm.hidden = true; } }, "Annuler"));
+    const remove = h("button", { class: "btn ghost", type: "button", disabled: ro, onclick: () => { confirm.hidden = false; } }, "Retirer du CRM");
+
+    d.replaceChildren(
+      h("div", { class: "drawer-head" },
+        h("div", { style: "display:flex;flex-direction:column;gap:10px;min-width:0" },
+          h("div", { class: "eyebrow" }, cibleLabel(p.cible)),
+          h("h2", { id: "d-name" }, p.name),
+          h("div", { class: "meta" }, [p.activity, [p.postalCode, p.city].filter(Boolean).join(" ")].filter(Boolean).join(" · ")),
+          h("div", {}, h("span", { class: "status " + p.status }, statutLabel(p.status)))),
+        h("button", { class: "close", type: "button", "aria-label": "Fermer", onclick: closeDrawer }, "×")),
+      ro ? h("div", { class: "alert" }, "Vous pouvez consulter cette fiche, mais votre accès ne permet pas de la modifier.") : null,
+      contact, form, assign, notes, why, fiche, h("div", { style: "display:flex;flex-direction:column;gap:10px" }, remove, confirm));
+    renderNotes();
+  }
+
+  function renderNotes() {
+    const ul = $("d-notes"); if (!ul) return;
+    ul.replaceChildren(...st.notes.map((n) => h("li", {},
+      h("div", { class: "by" }, st.profiles[n.author] ? h("img", { class: "avatar", src: st.profiles[n.author].avatarUrl, alt: "" }) : null,
+        personName(n.author) + " · " + new Date(n.createdAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })),
+      n.content)));
+  }
+
+  async function setAssignee(siren, id) {
+    try { await st.db.doc("prospects/" + siren).update({ assignedTo: id, updatedAt: now() }); await resolve([id]); }
+    catch (e) { writeFailed(e); }
+  }
+  async function removeProspect(siren) {
+    try {
+      const notes = await st.db.collection("prospects/" + siren + "/notes").limit(1000).get();
+      for (const n of notes.docs) await st.db.doc("prospects/" + siren + "/notes/" + n.id).delete();
+      await st.db.doc("prospects/" + siren).delete();
+      closeDrawer();
+    } catch (e) { writeFailed(e); }
+  }
+
+  // ------------------------------------------------------------------ Rendu général
+  function render() {
+    $("view-annuaire").hidden = st.view !== "annuaire";
+    $("view-prospects").hidden = st.view !== "prospects";
+    $("tab-annuaire").setAttribute("aria-selected", String(st.view === "annuaire"));
+    $("tab-prospects").setAttribute("aria-selected", String(st.view === "prospects"));
+    const mine = [...st.prospects.values()].filter((p) => p.assignedTo === st.meId && !["signe", "perdu"].includes(p.status)).length;
+    $("badge-mine").hidden = !mine; $("badge-mine").textContent = mine;
+    if (st.view === "annuaire") renderAnnuaire(); else renderProspects();
+    if (st.open) renderDrawer();
+  }
+
+  // ------------------------------------------------------------------ Évènements
+  const zoneSel = $("zone");
+  for (const [code, name] of DEPTS) zoneSel.append(h("option", { value: code }, `${code} · ${name}`));
+  zoneSel.value = st.zone;
+  zoneSel.addEventListener("change", () => { st.zone = zoneSel.value; st.shown = STEP; persist(); render(); });
+  let qt;
+  $("q").addEventListener("input", (e) => { clearTimeout(qt); qt = setTimeout(() => { st.q = e.target.value.trim(); st.shown = STEP; render(); }, 200); });
+  $("hide-taken").addEventListener("change", (e) => { st.hideTaken = e.target.checked; st.shown = STEP; render(); });
+  $("reset").addEventListener("click", () => { st.zone = ""; st.q = ""; st.cibles = []; st.signaux = []; st.hideTaken = false; zoneSel.value = ""; $("q").value = ""; $("hide-taken").checked = false; st.shown = STEP; persist(); render(); });
+  $("more").addEventListener("click", () => { st.shown += STEP; renderAnnuaire(); });
+  $("tab-annuaire").addEventListener("click", () => { st.view = "annuaire"; location.hash = "annuaire"; render(); });
+  $("tab-prospects").addEventListener("click", () => { st.view = "prospects"; location.hash = "prospects"; render(); });
+  if (location.hash === "#prospects") st.view = "prospects";
+
+  // ------------------------------------------------------------------ Démarrage
+  async function loadData() {
+    try {
+      const res = await fetch("annuaire.json");
+      const data = await res.json();
+      st.generatedAt = data.generatedAt;
+      st.companies = data.companies.map((c) => ({
+        ...c,
+        sig: c.cible === "difficulte" ? (c.signal && c.signal.includes("BODACC") ? "procedure" : "pertes") : null,
+        _hay: norm([c.name, c.activity, c.city, c.postalCode, c.dirigeant, c.siren].join(" ")),
+      }));
+      $("banner").textContent = `Données officielles et publiques · SIRENE, comptes annuels et BODACC · instantané du ${new Date(data.generatedAt).toLocaleDateString("fr-FR")}`;
+    } catch (e) {
+      $("count").textContent = "Annuaire indisponible";
+      $("cards").replaceChildren(h("div", { class: "empty", style: "grid-column:1/-1" }, "Le fichier des entreprises n’a pas pu être chargé. Rechargez la page."));
+    }
+    render();
+  }
+
+  async function connect() {
+    const [db, user] = await Promise.all([claude.use("db"), claude.use("user")]);
+    st.user = user;
+    if (user) {
+      const me = await user.me();
+      st.meId = me.id;
+      if (me.id) { $("me").hidden = false; $("me-avatar").src = me.avatarUrl; $("me-name").textContent = me.name || "Vous"; }
+      const can = await user.can("data.write");
+      if (can === false) st.canWrite = false;
+    }
+    if (!db || !st.meId) { render(); return; }
+    st.db = db;
+    db.collection("prospects").limit(1000).onSnapshot(async (snap) => {
+      st.prospects = new Map(snap.docs.map((d) => [d.id, d.data()]));
+      await resolve([...st.prospects.values()].map((p) => p.assignedTo));
+      render();
+    }, (e) => { console.warn(e); });
+    render();
+  }
+
+  render();
+  loadData();
+  if (window.claude && claude.use) connect().catch((e) => { console.warn(e); render(); });
+})();
+</script>

@@ -60,3 +60,18 @@ npm run dev                   # http://localhost:3000
 ## Stack
 
 Next.js 15 (App Router, Server Actions), Prisma, sessions JWT (`jose`) et mots de passe hachés avec `bcryptjs`.
+
+## Version artefact claude.ai
+
+`artifact/index.html` est une version autonome du site, publiée comme artefact claude.ai. L'annuaire et le CRM
+partagé sont les mêmes, mais chaque commercial est identifié par son compte claude.ai.
+
+Un artefact ne peut pas appeler les API publiques lui-même. L'annuaire est donc un instantané publié à côté de
+la page (`annuaire.json`), que l'on régénère avec :
+
+```bash
+npx tsx scripts/export-annuaire.ts annuaire.json 10   # 10 entreprises par cible et par département
+```
+
+On republie ensuite l'artefact avec ce fichier. Les prospects, les statuts et les notes sont stockés dans la base
+partagée de l'artefact, et ne sont pas affectés par une mise à jour de l'annuaire.

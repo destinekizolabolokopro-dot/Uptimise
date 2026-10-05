@@ -36,6 +36,8 @@ export type SearchParams = {
   cibles: CibleKey[];
   signaux: SignalKey[];
   page: number;
+  /** Nombre de résultats par source (par défaut : PAGE_SIZE réparti entre les sources). */
+  perSource?: number;
 };
 
 export type SourceResult = {
@@ -409,7 +411,7 @@ export async function searchCompanies(p: SearchParams) {
     }
   }
 
-  const perJob = Math.max(3, Math.ceil(PAGE_SIZE / Math.max(1, jobs.length)));
+  const perJob = p.perSource ?? Math.max(3, Math.ceil(PAGE_SIZE / Math.max(1, jobs.length)));
   // Requêtes légèrement décalées pour rester sous la limite de débit de l'API (7 req/s).
   const settled = await Promise.allSettled(
     jobs.map((j, i) => new Promise((r) => setTimeout(r, i * 250)).then(() => j.run(perJob))),
