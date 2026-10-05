@@ -63,7 +63,11 @@ Next.js 15 (App Router, Server Actions), Prisma, sessions JWT (`jose`) et mots d
 
 ## Version artefact claude.ai
 
-`artifact/index.html` est une version autonome du site, publiée comme artefact claude.ai. L'annuaire et le CRM
+`artifact/index.html` est une version autonome du site, publiée comme artefact claude.ai. Elle s'ouvre sur le
+**mode appel** : une entreprise à la fois, le numéro en grand, le dirigeant à demander et l'accroche à dire. Un
+clic (ou les touches 1 à 5) enregistre le résultat de l'appel, et l'entreprise suivante s'affiche. La file est
+commune à toute l'équipe : chaque fiche ouverte est réservée 20 minutes, les rappels reviennent à leur date et
+les « pas de réponse » sont relancés automatiquement. L'annuaire et le CRM
 partagé sont les mêmes, mais chaque commercial est identifié par son compte claude.ai.
 
 Un artefact ne peut pas appeler les API publiques lui-même. L'annuaire est donc un instantané publié à côté de
@@ -72,6 +76,15 @@ la page (`annuaire.json`), que l'on régénère avec :
 ```bash
 npx tsx scripts/export-annuaire.ts annuaire.json 10   # 10 entreprises par cible et par département
 ```
+
+On ajoute ensuite les numéros de téléphone via Google Maps (Places API) :
+
+```bash
+GOOGLE_MAPS_API_KEY=... npx tsx scripts/enrich-phones.ts annuaire.json --max=1000 --depts=69,75
+```
+
+Google offre 1 000 recherches gratuites par mois, puis facture environ 35 $ les 1 000. Les résultats sont gardés
+dans `phones-cache.json` : une même entreprise n'est jamais recherchée (ni payée) deux fois.
 
 On republie ensuite l'artefact avec ce fichier. Les prospects, les statuts et les notes sont stockés dans la base
 partagée de l'artefact, et ne sont pas affectés par une mise à jour de l'annuaire.

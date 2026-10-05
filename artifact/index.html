@@ -159,7 +159,7 @@ tr:last-child td { border-bottom: 0; }
 .status { display: inline-block; font-size: 13px; padding: 3px 10px; border-radius: 999px; background: var(--panel); white-space: nowrap; }
 .status.rdv, .status.proposition { background: var(--info-bg); color: var(--brand); }
 .status.signe { background: var(--ok-bg); color: var(--ok); }
-.status.perdu { color: var(--muted); }
+.status.perdu, .status.mauvais_numero { color: var(--muted); }
 .status.appele { background: var(--warn-bg); color: var(--warn); }
 .who { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
 .due { font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -189,6 +189,39 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
 
 .site-footer { margin-top: 88px; padding-block: 28px 44px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; font-size: 14px; color: var(--muted); }
 
+/* Mode appel */
+.call-head { padding-block: 40px 24px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px 32px; }
+.call-head h1 { font-size: clamp(38px, 5.5vw, 64px); }
+.call-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.call-filters select { height: 44px; width: auto; max-width: 100%; border-radius: 999px; padding: 0 16px; font-size: 15px; }
+.kpis { display: flex; flex-wrap: wrap; gap: 8px 28px; font-size: 15px; color: var(--muted); margin-bottom: 20px; }
+.kpis b { color: var(--ink); font-weight: 500; font-size: 22px; font-variant-numeric: tabular-nums; margin-right: 6px; }
+.call { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (max-width: 860px) { .call { grid-template-columns: 1fr; } }
+.call-card { background: var(--card); border: 1px solid var(--line); border-radius: 24px; padding: clamp(20px, 3vw, 36px); display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.call-card h2 { font-size: clamp(30px, 4.5vw, 48px); overflow-wrap: anywhere; text-wrap: balance; }
+.ask { display: flex; align-items: center; gap: 12px; font-size: 18px; padding: 14px 16px; border-radius: 14px; background: var(--panel); }
+.ask small { display: block; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.say { font-size: 18px; line-height: 1.5; margin: 0; }
+.say-label { font-size: 12px; font-weight: 500; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+.big-call { min-height: 76px; border-radius: 16px; }
+.big-call .num { font-size: clamp(24px, 3.4vw, 32px); }
+.side { display: flex; flex-direction: column; gap: 14px; }
+.appel .num { white-space: nowrap; }
+@media (max-width: 560px) { .big-call .cta { display: none; } .big-call { justify-content: center; } .big-call .num { font-size: 24px; } }
+@media (hover: none) { .outcome kbd { display: none; } }
+.outcomes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.outcome { min-height: 64px; border-radius: 14px; border: 1px solid var(--line-strong); background: var(--card); font-size: 16px; font-weight: 500; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 16px; text-align: left; }
+.outcome:hover { border-color: var(--brand); color: var(--brand); }
+.outcome kbd { font: 12px var(--font-body); color: var(--muted); border: 1px solid var(--chip-line); border-radius: 6px; padding: 1px 7px; }
+.outcome.win { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); }
+.outcome.wide { grid-column: 1 / -1; }
+.outcome:disabled { opacity: .5; cursor: progress; }
+.when { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 14px; border-radius: 14px; background: var(--panel); }
+.when .input { height: 40px; width: auto; }
+.history { font-size: 14px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+.skip { align-self: flex-start; }
+
 @media (prefers-reduced-motion: reduce) { .fiche, .appel { transition: none; } .fiche:hover { transform: none; } }
 </style>
 
@@ -198,7 +231,8 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
   <header class="site-header">
     <div class="logo">[Uptimise]</div>
     <nav class="nav" role="tablist" aria-label="Sections">
-      <button class="tab" role="tab" id="tab-annuaire" aria-selected="true">Annuaire</button>
+      <button class="tab" role="tab" id="tab-appel" aria-selected="true">Appeler</button>
+      <button class="tab" role="tab" id="tab-annuaire" aria-selected="false">Annuaire</button>
       <button class="tab" role="tab" id="tab-prospects" aria-selected="false">Prospects<span class="badge" id="badge-mine" hidden></span></button>
       <span class="me" id="me" hidden><img alt="" id="me-avatar"><span id="me-name"></span></span>
     </nav>
@@ -206,7 +240,23 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
 </div>
 
 <main class="wrap">
-  <section id="view-annuaire">
+  <section id="view-appel">
+    <div class="call-head">
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="eyebrow">Mode appel</div>
+        <h1>Une entreprise, <span class="serif" style="display:inline">un appel.</span></h1>
+      </div>
+      <div class="call-filters">
+        <label class="label" for="zone-appel" style="margin-right:4px">Zone</label>
+        <select id="zone-appel" class="input"><option value="">Toute la France</option></select>
+        <div class="chips" id="cibles-appel" role="group" aria-label="Cibles"></div>
+      </div>
+    </div>
+    <div class="kpis" id="kpis"></div>
+    <div id="call"></div>
+  </section>
+
+  <section id="view-annuaire" hidden>
     <section class="hero">
       <div class="hero-main">
         <div class="eyebrow">Annuaire de prospection</div>
@@ -290,7 +340,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
   ];
   const STATUTS = [
     ["a_appeler", "À appeler"], ["appele", "Appelé – à relancer"], ["rdv", "RDV pris"],
-    ["proposition", "Proposition envoyée"], ["signe", "Signé"], ["perdu", "Pas intéressé"],
+    ["proposition", "Proposition envoyée"], ["signe", "Signé"], ["perdu", "Pas intéressé"], ["mauvais_numero", "Mauvais numéro"],
   ];
   const DEPTS = [["01","Ain"],["02","Aisne"],["03","Allier"],["04","Alpes-de-Haute-Provence"],["05","Hautes-Alpes"],["06","Alpes-Maritimes"],["07","Ardèche"],["08","Ardennes"],["09","Ariège"],["10","Aube"],["11","Aude"],["12","Aveyron"],["13","Bouches-du-Rhône"],["14","Calvados"],["15","Cantal"],["16","Charente"],["17","Charente-Maritime"],["18","Cher"],["19","Corrèze"],["2A","Corse-du-Sud"],["2B","Haute-Corse"],["21","Côte-d'Or"],["22","Côtes-d'Armor"],["23","Creuse"],["24","Dordogne"],["25","Doubs"],["26","Drôme"],["27","Eure"],["28","Eure-et-Loir"],["29","Finistère"],["30","Gard"],["31","Haute-Garonne"],["32","Gers"],["33","Gironde"],["34","Hérault"],["35","Ille-et-Vilaine"],["36","Indre"],["37","Indre-et-Loire"],["38","Isère"],["39","Jura"],["40","Landes"],["41","Loir-et-Cher"],["42","Loire"],["43","Haute-Loire"],["44","Loire-Atlantique"],["45","Loiret"],["46","Lot"],["47","Lot-et-Garonne"],["48","Lozère"],["49","Maine-et-Loire"],["50","Manche"],["51","Marne"],["52","Haute-Marne"],["53","Mayenne"],["54","Meurthe-et-Moselle"],["55","Meuse"],["56","Morbihan"],["57","Moselle"],["58","Nièvre"],["59","Nord"],["60","Oise"],["61","Orne"],["62","Pas-de-Calais"],["63","Puy-de-Dôme"],["64","Pyrénées-Atlantiques"],["65","Hautes-Pyrénées"],["66","Pyrénées-Orientales"],["67","Bas-Rhin"],["68","Haut-Rhin"],["69","Rhône"],["70","Haute-Saône"],["71","Saône-et-Loire"],["72","Sarthe"],["73","Savoie"],["74","Haute-Savoie"],["75","Paris"],["76","Seine-Maritime"],["77","Seine-et-Marne"],["78","Yvelines"],["79","Deux-Sèvres"],["80","Somme"],["81","Tarn"],["82","Tarn-et-Garonne"],["83","Var"],["84","Vaucluse"],["85","Vendée"],["86","Vienne"],["87","Haute-Vienne"],["88","Vosges"],["89","Yonne"],["90","Territoire de Belfort"],["91","Essonne"],["92","Hauts-de-Seine"],["93","Seine-Saint-Denis"],["94","Val-de-Marne"],["95","Val-d'Oise"],["971","Guadeloupe"],["972","Martinique"],["973","Guyane"],["974","La Réunion"],["976","Mayotte"]];
   const deptName = (c) => (DEPTS.find((d) => d[0] === c) || [c, c])[1];
@@ -302,7 +352,8 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
   const st = {
     companies: [], generatedAt: null,
     zone: "", q: "", cibles: [], signaux: [], hideTaken: false, shown: STEP,
-    view: "annuaire", vue: "miens", statut: null,
+    view: "appel", vue: "miens", statut: null,
+    current: null, reserving: false, skipped: new Set(), handled: new Set(), rappel: false, busy: false,
     prospects: new Map(), // siren -> doc data
     db: null, user: null, meId: null, canWrite: true,
     open: null, notesUnsub: null, notes: [], profiles: {},
@@ -418,7 +469,8 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
   }
 
   function card(c) {
-    const p = st.prospects.get(c.siren);
+    const raw = st.prospects.get(c.siren);
+    const p = raw && raw.name && !raw.reservedOnly ? raw : null;
     const mine = p && p.assignedTo === st.meId;
     const meta = [c.activity, [c.postalCode, c.city].filter(Boolean).join(" "), c.headcount].filter(Boolean).join(" · ");
     let tag;
@@ -427,14 +479,15 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     else tag = h("span", { class: "tag" }, "SIREN " + c.siren);
 
     const actions = h("div", { class: "actions" });
-    if (p && p.phone) actions.append(h("div", { class: "row" },
-      h("a", { class: "appel", href: telHref(p.phone) }, h("span", { class: "num" }, ICON.phone(), h("span", {}, p.phone)), h("span", { class: "cta" }, "Appeler")),
-      copyBtn(p.phone)));
+    const phone = (p && p.phone) || c.phone;
+    if (phone) actions.append(h("div", { class: "row" },
+      h("a", { class: "appel", href: telHref(phone) }, h("span", { class: "num" }, ICON.phone(), h("span", {}, phone)), h("span", { class: "cta" }, "Appeler")),
+      copyBtn(phone)));
     if (p && p.email) actions.append(h("div", { class: "row" }, h("a", { class: "mail", href: "mailto:" + p.email }, ICON.mail(), h("span", {}, p.email)), copyBtn(p.email)));
     if (!p) actions.append(h("button", { class: "btn-outline", type: "button", disabled: !st.db || !st.canWrite, onclick: (e) => claim(c, e.currentTarget) },
       ICON.plus(), st.db ? "Ajouter à mes prospects" : "Connectez-vous pour suivre"));
-    else actions.append(h("button", { class: "btn-outline", type: "button", onclick: () => openDrawer(c.siren) }, p.phone ? "Ouvrir la fiche" : "Renseigner le téléphone et le mail"));
-    if (!p || !p.phone) actions.append(findRow(c));
+    else actions.append(h("button", { class: "btn-outline", type: "button", onclick: () => openDrawer(c.siren) }, phone ? "Ouvrir la fiche" : "Renseigner le téléphone et le mail"));
+    if (!phone) actions.append(findRow(c));
 
     return h("article", { class: "fiche" },
       h("div", { class: "fiche-top" }, h("span", { class: "cat" }, cibleLabel(c.cible)), tag),
@@ -468,14 +521,15 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     try {
       const snap = await ref.get();
       if (snap.exists) {
-        if (!snap.data().assignedTo) await ref.update({ assignedTo: st.meId, updatedAt: now() });
+        const d = snap.data();
+        if (!d.assignedTo || (d.reservedOnly && !lockedByOther(d))) await ref.update({ assignedTo: st.meId, reservedOnly: false, lockedBy: null, updatedAt: now() });
       } else {
         await ref.set({
           siren: c.siren, name: c.name, activity: c.activity || null, city: c.city || null, postalCode: c.postalCode || null,
           address: c.address || null, department: c.department || null, headcount: c.headcount || null, cible: c.cible,
           signal: c.signal || null, pitch: c.pitch || null, dirigeant: c.dirigeant || null,
           status: "a_appeler", assignedTo: st.meId, createdBy: st.meId, createdAt: now(), updatedAt: now(),
-          phone: null, email: null, website: null, nextAction: null,
+          phone: c.phone || null, email: null, website: c.website || null, nextAction: null,
         });
       }
     } catch (e) {
@@ -490,7 +544,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
 
   // ------------------------------------------------------------------ CRM : tableau
   function renderProspects() {
-    const all = [...st.prospects.values()];
+    const all = [...st.prospects.values()].filter((p) => p.name && !p.reservedOnly);
     const scoped = all.filter((p) => st.vue === "equipe" ? true : st.vue === "libres" ? !p.assignedTo : p.assignedTo === st.meId);
     $("vues").replaceChildren(...[["miens", "Mes prospects"], ["equipe", "Toute l’équipe"], ["libres", "Non attribués"]].map(([k, l]) =>
       h("button", { class: "chip small", type: "button", "aria-pressed": String(st.vue === k), onclick: () => { st.vue = k; st.statut = null; persist(); render(); } }, l)));
@@ -678,15 +732,237 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     } catch (e) { writeFailed(e); }
   }
 
+  // ------------------------------------------------------------------ Mode appel
+  const CLOSED = ["signe", "perdu", "rdv", "proposition", "mauvais_numero"];
+  const LOCK_MS = 20 * 60 * 1000;
+  const today = () => new Date().toISOString().slice(0, 10);
+  const plusDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+  const lockedByOther = (p) => p && p.lockedBy && p.lockedBy !== st.meId && p.lockedUntil && Date.parse(p.lockedUntil) > Date.now();
+
+  /** File d'appels : rappels arrivés à échéance d'abord, puis entreprises jamais appelées. */
+  function queue() {
+    const t = today();
+    const due = [], fresh = [], seen = new Set();
+    for (const c of st.companies) {
+      if (seen.has(c.siren)) continue; seen.add(c.siren);
+      if (st.zone && c.department !== st.zone) continue;
+      if (st.cibles.length && !st.cibles.includes(c.cible)) continue;
+      if (c.cible === "difficulte" && st.signaux.length && !st.signaux.includes(c.sig)) continue;
+      const p = st.prospects.get(c.siren);
+      if (!((p && p.phone) || c.phone)) continue;
+      if (st.skipped.has(c.siren) || st.handled.has(c.siren) || lockedByOther(p)) continue;
+      if (!p || !p.name || p.reservedOnly) { fresh.push(c); continue; }
+      if (CLOSED.includes(p.status)) continue;
+      if (p.assignedTo && p.assignedTo !== st.meId) continue;
+      if (p.nextAction && p.nextAction > t) continue;
+      if (p.lastCallAt || p.nextAction) due.push(c); else fresh.push(c);
+    }
+    // Rappels et prospects déjà suivis par moi aussi quand ils ne sont plus dans l'annuaire filtré
+    return { list: [...due, ...fresh], due: due.length, fresh: fresh.length };
+  }
+
+  async function reserve(c) {
+    // Réserve la fiche pour 20 minutes : un collègue ne la verra pas pendant l'appel.
+    const ref = st.db.doc("prospects/" + c.siren);
+    const lease = await ref.acquire({ holder: st.meId, ttlMs: 15000 });
+    if (!lease.acquired) return false;
+    const snap = await ref.get();
+    const p = snap.exists ? snap.data() : null;
+    const takenByOther = p && p.name && !p.reservedOnly && p.assignedTo && p.assignedTo !== st.meId;
+    if (takenByOther || lockedByOther(p)) return false;
+    const lock = { lockedBy: st.meId, lockedUntil: new Date(Date.now() + LOCK_MS).toISOString(), assignedTo: st.meId, updatedAt: now() };
+    if (p && p.name) await ref.update(lock);
+    else await ref.set({
+      siren: c.siren, name: c.name, activity: c.activity || null, city: c.city || null, postalCode: c.postalCode || null,
+      address: c.address || null, department: c.department || null, headcount: c.headcount || null, cible: c.cible,
+      signal: c.signal || null, pitch: c.pitch || null, dirigeant: c.dirigeant || null,
+      status: "a_appeler", createdBy: st.meId, createdAt: now(), attempts: 0, reservedOnly: true,
+      phone: c.phone || null, email: null, website: c.website || null, nextAction: null, ...lock,
+    });
+    return true;
+  }
+
+  async function nextCompany() {
+    if (st.reserving || !st.db) return;
+    st.reserving = true; st.rappel = false;
+    try {
+      for (const c of queue().list.slice(0, 15)) {
+        if (await reserve(c)) { st.current = c.siren; return; }
+        st.skipped.add(c.siren);
+      }
+      st.current = null;
+    } catch (e) { writeFailed(e); st.current = null; }
+    finally { st.reserving = false; render(); }
+  }
+
+  async function releaseCurrent() {
+    const siren = st.current; st.current = null;
+    if (!siren || !st.db) return;
+    const p = st.prospects.get(siren);
+    try {
+      if (p && p.reservedOnly && p.lockedBy === st.meId) await st.db.doc("prospects/" + siren).delete();
+      else if (p) await st.db.doc("prospects/" + siren).update({ lockedBy: null, lockedUntil: null });
+    } catch (e) { console.warn(e); }
+  }
+
+  const OUTCOMES = {
+    pas_reponse: { label: "Pas de réponse", key: "1" },
+    rappeler: { label: "Rappeler", key: "2" },
+    rdv: { label: "RDV pris", key: "3", win: true },
+    perdu: { label: "Pas intéressé", key: "4" },
+    mauvais: { label: "Mauvais numéro", key: "5" },
+  };
+
+  async function logOutcome(kind, date) {
+    const siren = st.current; if (!siren || st.busy) return;
+    const p = st.prospects.get(siren) || {};
+    const attempts = (p.attempts || 0) + 1;
+    const patch = { reservedOnly: false, attempts, lastCallAt: now(), lastCallBy: st.meId, lastResult: kind, lockedBy: null, lockedUntil: null, updatedAt: now(), assignedTo: st.meId };
+    if (kind === "pas_reponse") Object.assign(patch, { status: "appele", nextAction: plusDays(attempts >= 3 ? 7 : 2) });
+    if (kind === "rappeler") Object.assign(patch, { status: "appele", nextAction: date || plusDays(1) });
+    if (kind === "rdv") Object.assign(patch, { status: "rdv", nextAction: date || null });
+    if (kind === "perdu") Object.assign(patch, { status: "perdu", nextAction: null });
+    if (kind === "mauvais") Object.assign(patch, { status: "mauvais_numero", nextAction: null });
+    const noteEl = $("call-note");
+    const extra = noteEl ? noteEl.value.trim() : "";
+    const when = patch.nextAction ? ` (le ${new Date(patch.nextAction + "T12:00").toLocaleDateString("fr-FR")})` : "";
+    st.busy = true; renderCall();
+    try {
+      await st.db.doc("prospects/" + siren).update(patch);
+      // Mise à jour locale immédiate : la fiche ne doit pas revenir avant la confirmation de la base.
+      st.prospects.set(siren, { ...p, ...patch });
+      st.handled.add(siren);
+      await st.db.collection("prospects/" + siren + "/notes").add({ author: st.meId, content: `${OUTCOMES[kind].label}${when}${extra ? " — " + extra.slice(0, 1000) : ""}`, createdAt: now() });
+      st.current = null;
+    } catch (e) { writeFailed(e); }
+    st.busy = false;
+    nextCompany();
+  }
+
+  function renderCall() {
+    // Cibles (rapide)
+    $("cibles-appel").replaceChildren(...CIBLES.map(([k, l]) => h("button", {
+      class: "chip small", type: "button", "aria-pressed": String(st.cibles.includes(k)), title: CIBLE_HINT[k],
+      onclick: () => { st.cibles = st.cibles.includes(k) ? st.cibles.filter((x) => x !== k) : [...st.cibles, k]; persist(); releaseCurrent(); render(); },
+    }, l)));
+
+    const q = queue();
+    const t = today();
+    const mine = [...st.prospects.values()].filter((p) => p.lastCallBy === st.meId && (p.lastCallAt || "").slice(0, 10) === t);
+    $("kpis").replaceChildren(
+      h("span", {}, h("b", {}, fmtN(mine.length)), "appels aujourd’hui"),
+      h("span", {}, h("b", {}, fmtN(mine.filter((p) => p.lastResult === "rdv").length)), "RDV aujourd’hui"),
+      h("span", {}, h("b", {}, fmtN(q.due)), "rappels prévus"),
+      h("span", {}, h("b", {}, fmtN(q.fresh)), "à appeler dans la file"));
+
+    const box = $("call");
+    if (!st.companies.length) { box.replaceChildren(h("div", { class: "empty" }, "Chargement de l’annuaire…")); return; }
+    if (!st.db) { box.replaceChildren(h("div", { class: "empty" }, "Le mode appel partage la file entre commerciaux : ouvrez la page connecté à claude.ai pour commencer.")); return; }
+    if (!st.canWrite) { box.replaceChildren(h("div", { class: "empty" }, "Votre accès permet de consulter la page, pas d’appeler depuis la file. Demandez l’accès « Contributeur » à la personne qui vous a partagé la page.")); return; }
+
+    const p = st.current && st.prospects.get(st.current);
+    if (!st.current || !p || !p.name) {
+      if (st.current && (!p || !p.name)) { box.replaceChildren(h("div", { class: "empty" }, "Préparation de la fiche…")); return; }
+      const withoutPhone = st.companies.filter((c) => (!st.zone || c.department === st.zone) && !c.phone && !(st.prospects.get(c.siren) || {}).phone).length;
+      box.replaceChildren(q.list.length
+        ? h("div", { class: "call-card", style: "align-items:flex-start" },
+            h("h2", {}, `${fmtN(q.list.length)} entreprise${q.list.length > 1 ? "s" : ""} prête${q.list.length > 1 ? "s" : ""} à appeler`),
+            h("p", { class: "say" }, "Les rappels prévus passent en premier. Chaque fiche ouverte est réservée pour vous pendant 20 minutes."),
+            h("button", { class: "btn", type: "button", disabled: st.reserving, onclick: nextCompany }, st.reserving ? "Ouverture…" : "Commencer les appels"),
+            h("div", { class: "hint" }, "Raccourcis : 1 à 5 pour le résultat de l’appel, Entrée pour commencer."))
+        : h("div", { class: "empty" },
+            h("p", { style: "margin:0 0 8px" }, "Plus aucune entreprise à appeler avec ces filtres pour le moment."),
+            withoutPhone ? h("p", { class: "hint", style: "margin:0" }, `${fmtN(withoutPhone)} entreprises de cette zone n’ont pas encore de numéro. Elles entreront dans la file dès qu’il sera ajouté (Google Maps).`) : null,
+            st.skipped.size ? h("button", { class: "link", type: "button", onclick: () => { st.skipped.clear(); render(); } }, "Revoir les fiches passées") : null));
+      return;
+    }
+
+    const c = st.companies.find((x) => x.siren === st.current) || p;
+    const phone = p.phone || c.phone;
+    const meta = [p.activity, [p.postalCode, p.city].filter(Boolean).join(" "), p.headcount].filter(Boolean).join(" · ");
+    const card = h("article", { class: "call-card" },
+      h("div", { class: "fiche-top" }, h("span", { class: "cat" }, cibleLabel(p.cible)),
+        p.attempts ? h("span", { class: "tag taken" }, `${p.attempts}e tentative`) : h("span", { class: "tag" }, "Premier appel")),
+      h("div", { style: "display:flex;flex-direction:column;gap:8px" }, h("h2", {}, p.name), meta ? h("div", { class: "meta" }, meta) : null),
+      h("div", { class: "row" },
+        h("a", { class: "appel big-call", href: telHref(phone) }, h("span", { class: "num" }, ICON.phone(), h("span", {}, phone)), h("span", { class: "cta" }, "Appeler")),
+        copyBtn(phone)),
+      p.dirigeant ? h("div", { class: "ask" }, ICON.user(), h("div", {}, h("small", {}, "Demandez"), p.dirigeant)) : null,
+      h("div", { style: "display:flex;flex-direction:column;gap:6px" },
+        h("div", { class: "say-label" }, "Accroche"),
+        p.signal ? h("div", { class: "signal" }, p.signal) : null,
+        h("p", { class: "say" }, p.pitch || "")),
+      (p.website || c.mapsUrl) ? h("div", { class: "find" },
+        p.website ? h("a", { href: p.website, target: "_blank", rel: "noreferrer" }, "Site web") : null,
+        c.mapsUrl ? h("a", { href: c.mapsUrl, target: "_blank", rel: "noreferrer" }, "Fiche Google Maps") : null) : null,
+      st.notes.length ? h("div", { class: "history" }, h("div", { class: "say-label" }, "Historique"),
+        st.notes.slice(0, 4).map((n) => h("div", {}, `${new Date(n.createdAt).toLocaleDateString("fr-FR")} · ${personName(n.author)} · ${n.content}`))) : null);
+
+    const btn = (kind, extraClass) => h("button", {
+      class: "outcome" + (OUTCOMES[kind].win ? " win" : "") + (extraClass ? " " + extraClass : ""), type: "button", disabled: st.busy,
+      onclick: () => (kind === "rappeler" || kind === "rdv") && !st.rappel ? (st.rappel = kind, renderCall()) : logOutcome(kind),
+    }, OUTCOMES[kind].label, h("kbd", {}, OUTCOMES[kind].key));
+
+    const side = h("div", { class: "side" },
+      h("div", { class: "say-label" }, "Résultat de l’appel"),
+      h("div", { class: "outcomes" }, btn("pas_reponse", "wide"), btn("rappeler"), btn("rdv"), btn("perdu"), btn("mauvais")));
+    if (st.rappel) {
+      const kind = st.rappel;
+      const pick = (label, d) => h("button", { class: "chip small", type: "button", disabled: st.busy, onclick: () => logOutcome(kind, d) }, label);
+      const custom = h("input", { id: "call-date", class: "input", type: "date", min: today() });
+      side.append(h("div", { class: "when" },
+        h("span", { class: "hint", style: "width:100%" }, kind === "rdv" ? "Date du rendez-vous :" : "Rappeler quand ?"),
+        kind === "rdv" ? null : pick("Demain", plusDays(1)),
+        kind === "rdv" ? null : pick("Dans 3 jours", plusDays(3)),
+        kind === "rdv" ? null : pick("Dans 1 semaine", plusDays(7)),
+        kind === "rdv" ? pick("Sans date", null) : null,
+        custom,
+        h("button", { class: "chip small", type: "button", onclick: () => custom.value && logOutcome(kind, custom.value) }, "Valider"),
+        h("button", { class: "link", type: "button", onclick: () => { st.rappel = false; renderCall(); } }, "Annuler")));
+    }
+    side.append(
+      h("label", { class: "label", for: "call-note" }, "Note (facultatif)"),
+      h("input", { id: "call-note", class: "input", type: "text", maxlength: "300", placeholder: "Ex. : standardiste, rappeler après 14 h", value: st.draftNote || "", oninput: (e) => { st.draftNote = e.target.value; } }),
+      h("button", { class: "link skip", type: "button", disabled: st.busy, onclick: async () => { st.skipped.add(st.current); st.draftNote = ""; await releaseCurrent(); nextCompany(); } }, "Passer sans appeler"),
+      h("button", { class: "link skip", type: "button", onclick: () => openDrawer(p.siren) }, "Ouvrir la fiche complète"));
+
+    box.replaceChildren(h("div", { class: "call" }, card, side));
+  }
+
+  // Historique de la fiche en cours (abonnement unique, renouvelé quand la fiche change)
+  let callNotesFor = null, callNotesUnsub = null;
+  function watchCallNotes() {
+    if (callNotesFor === st.current || !st.db) return;
+    if (callNotesUnsub) callNotesUnsub();
+    callNotesFor = st.current; st.notes = []; callNotesUnsub = null; st.draftNote = "";
+    if (!st.current) return;
+    callNotesUnsub = st.db.collection("prospects/" + st.current + "/notes").orderBy("createdAt", "desc").limit(10).onSnapshot(async (snap) => {
+      if (st.open) return; // le panneau fiche gère alors ses propres notes
+      st.notes = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      await resolve(st.notes.map((n) => n.author));
+      if (st.view === "appel") renderCall();
+    }, (e) => console.warn(e));
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (st.view !== "appel" || st.open || e.target.closest("input, textarea, select")) return;
+    if (!st.current && e.key === "Enter" && queue().list.length) { e.preventDefault(); nextCompany(); return; }
+    const kind = Object.keys(OUTCOMES).find((k) => OUTCOMES[k].key === e.key);
+    if (kind && st.current && !st.busy) { e.preventDefault(); (kind === "rappeler" || kind === "rdv") ? (st.rappel = kind, renderCall()) : logOutcome(kind); }
+  });
+  window.addEventListener("pagehide", () => { releaseCurrent(); });
+
   // ------------------------------------------------------------------ Rendu général
   function render() {
+    $("view-appel").hidden = st.view !== "appel";
+    $("tab-appel").setAttribute("aria-selected", String(st.view === "appel"));
     $("view-annuaire").hidden = st.view !== "annuaire";
     $("view-prospects").hidden = st.view !== "prospects";
     $("tab-annuaire").setAttribute("aria-selected", String(st.view === "annuaire"));
     $("tab-prospects").setAttribute("aria-selected", String(st.view === "prospects"));
-    const mine = [...st.prospects.values()].filter((p) => p.assignedTo === st.meId && !["signe", "perdu"].includes(p.status)).length;
+    const mine = [...st.prospects.values()].filter((p) => p.name && !p.reservedOnly && p.assignedTo === st.meId && !["signe", "perdu", "mauvais_numero"].includes(p.status)).length;
     $("badge-mine").hidden = !mine; $("badge-mine").textContent = mine;
-    if (st.view === "annuaire") renderAnnuaire(); else renderProspects();
+    if (st.view === "appel") { watchCallNotes(); renderCall(); } else if (st.view === "annuaire") renderAnnuaire(); else renderProspects();
     if (st.open) renderDrawer();
   }
 
@@ -694,15 +970,21 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
   const zoneSel = $("zone");
   for (const [code, name] of DEPTS) zoneSel.append(h("option", { value: code }, `${code} · ${name}`));
   zoneSel.value = st.zone;
-  zoneSel.addEventListener("change", () => { st.zone = zoneSel.value; st.shown = STEP; persist(); render(); });
+  zoneSel.addEventListener("change", () => { st.zone = zoneSel.value; $("zone-appel").value = st.zone; st.shown = STEP; persist(); render(); });
+  const zoneCall = $("zone-appel");
+  for (const [code, name] of DEPTS) zoneCall.append(h("option", { value: code }, `${code} · ${name}`));
+  zoneCall.value = st.zone;
+  zoneCall.addEventListener("change", () => { st.zone = zoneCall.value; zoneSel.value = st.zone; persist(); releaseCurrent(); render(); });
   let qt;
   $("q").addEventListener("input", (e) => { clearTimeout(qt); qt = setTimeout(() => { st.q = e.target.value.trim(); st.shown = STEP; render(); }, 200); });
   $("hide-taken").addEventListener("change", (e) => { st.hideTaken = e.target.checked; st.shown = STEP; render(); });
   $("reset").addEventListener("click", () => { st.zone = ""; st.q = ""; st.cibles = []; st.signaux = []; st.hideTaken = false; zoneSel.value = ""; $("q").value = ""; $("hide-taken").checked = false; st.shown = STEP; persist(); render(); });
   $("more").addEventListener("click", () => { st.shown += STEP; renderAnnuaire(); });
+  $("tab-appel").addEventListener("click", () => { st.view = "appel"; location.hash = "appel"; render(); });
   $("tab-annuaire").addEventListener("click", () => { st.view = "annuaire"; location.hash = "annuaire"; render(); });
   $("tab-prospects").addEventListener("click", () => { st.view = "prospects"; location.hash = "prospects"; render(); });
   if (location.hash === "#prospects") st.view = "prospects";
+  if (location.hash === "#annuaire") st.view = "annuaire";
 
   // ------------------------------------------------------------------ Démarrage
   async function loadData() {
