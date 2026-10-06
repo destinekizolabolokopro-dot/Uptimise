@@ -88,3 +88,21 @@ dans `phones-cache.json` : une même entreprise n'est jamais recherchée (ni pay
 
 On republie ensuite l'artefact avec ce fichier. Les prospects, les statuts et les notes sont stockés dans la base
 partagée de l'artefact, et ne sont pas affectés par une mise à jour de l'annuaire.
+
+### Rôles, inscription et suivi d'équipe
+
+- **Admin** : le propriétaire de l'artefact. Il valide les inscriptions, nomme les chefs, suspend un accès.
+- **Chef d'équipe** : valide les inscriptions des commerciaux, voit le tableau de bord de l'équipe (temps en ligne,
+  début et fin de journée, appels, appels par heure, temps entre deux appels, RDV, objectifs, alertes d'inactivité
+  ou de retard) et fixe les objectifs. Il a besoin de l'accès « Éditeur » dans le menu Partager.
+- **Commercial** : s'inscrit à sa première visite (prénom, nom, téléphone), puis attend la validation. Il a besoin
+  de l'accès « Contributeur ».
+
+Ces règles sont appliquées par la base de l'artefact (et pas seulement par la page). Un commercial ne peut ni se
+valider lui-même ni lire l'activité de ses collègues.
+
+### Mise à jour de nuit
+
+Chaque nuit, une tâche programmée recharge l'annuaire (SIRENE, BODACC), reprend les numéros déjà trouvés, en
+cherche de nouveaux sur Google Maps si `GOOGLE_MAPS_API_KEY` est définie (33 par nuit, soit environ 1 000 par
+mois, la part gratuite), compacte le fichier (`scripts/pack-annuaire.ts`) et republie l'artefact.

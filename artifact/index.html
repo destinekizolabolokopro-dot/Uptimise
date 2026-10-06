@@ -222,6 +222,55 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
 .history { font-size: 14px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
 .skip { align-self: flex-start; }
 
+/* Accès : inscription et attente */
+.gate { max-width: 560px; margin: 0 auto; padding-block: 64px 24px; display: flex; flex-direction: column; gap: 22px; }
+.gate h1 { font-size: clamp(40px, 6vw, 64px); }
+.gate .lede { flex: none; max-width: none; }
+.gate .form { display: flex; flex-direction: column; gap: 16px; }
+.seg { display: flex; flex-wrap: wrap; gap: 8px; }
+.pending-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--warn-line); margin-right: 8px; animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+
+/* Mes chiffres (mode appel) */
+.goal { display: flex; flex-direction: column; gap: 6px; min-width: 220px; flex: 1 1 260px; }
+.bar { height: 8px; border-radius: 999px; background: var(--panel); overflow: hidden; border: 1px solid var(--line); }
+.bar > span { display: block; height: 100%; background: var(--brand); border-radius: 999px; }
+.bar.done > span { background: var(--ok); }
+.timer { font-variant-numeric: tabular-nums; }
+.next-up { font-size: 14px; color: var(--muted); }
+.next-up b { color: var(--ink); font-weight: 500; }
+
+/* Équipe */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 24px; }
+.tile { background: var(--panel); border-radius: 16px; padding: 16px 18px; }
+.tile .n { display: block; font-size: 34px; font-weight: 300; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.tile .l { display: block; font-size: 13px; color: var(--muted); }
+.section-title { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-block: 28px 14px; }
+.section-title h3 { font-size: 22px; }
+.pill { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 3px 10px; border-radius: 999px; white-space: nowrap; background: var(--panel); color: var(--muted); }
+.pill.good { background: var(--ok-bg); color: var(--ok); }
+.pill.warn { background: var(--warn-bg); color: var(--warn); }
+.pill.bad { background: var(--danger-bg); color: var(--danger); }
+.pill.live::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+.num-cell { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mini-bar { width: 90px; }
+.signups { display: flex; flex-direction: column; gap: 10px; }
+.signup { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border: 1px solid var(--warn-line); background: var(--warn-bg); border-radius: 14px; }
+.signup .who-s { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.signup .acts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.signup select { height: 40px; width: auto; }
+.settings { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.settings .field { flex: 0 1 200px; }
+.settings .input { height: 44px; }
+.chart { position: relative; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart .tip { position: absolute; pointer-events: none; background: var(--ink); color: var(--bg); font-size: 13px; padding: 5px 9px; border-radius: 8px; white-space: nowrap; transform: translate(-50%, -110%); }
+.chart-title { font-size: 13px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.log li { display: flex; gap: 10px; justify-content: space-between; border-bottom: 1px solid var(--line); padding-block: 6px; }
+.log li:last-child { border-bottom: 0; }
+
+@media (prefers-reduced-motion: reduce) { .pending-dot { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .fiche, .appel { transition: none; } .fiche:hover { transform: none; } }
 </style>
 
@@ -230,17 +279,33 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
 <div class="wrap">
   <header class="site-header">
     <div class="logo">[Uptimise]</div>
-    <nav class="nav" role="tablist" aria-label="Sections">
+    <nav class="nav" role="tablist" aria-label="Sections" id="nav">
       <button class="tab" role="tab" id="tab-appel" aria-selected="true">Appeler</button>
       <button class="tab" role="tab" id="tab-annuaire" aria-selected="false">Annuaire</button>
       <button class="tab" role="tab" id="tab-prospects" aria-selected="false">Prospects<span class="badge" id="badge-mine" hidden></span></button>
+      <button class="tab" role="tab" id="tab-equipe" aria-selected="false" hidden>Équipe<span class="badge" id="badge-signups" hidden></span></button>
       <span class="me" id="me" hidden><img alt="" id="me-avatar"><span id="me-name"></span></span>
     </nav>
   </header>
 </div>
 
 <main class="wrap">
-  <section id="view-appel">
+  <section id="view-gate" hidden>
+    <div class="gate" id="gate"></div>
+  </section>
+
+  <section id="view-equipe" hidden>
+    <div class="page-title">
+      <div style="display:flex;flex-direction:column;gap:18px">
+        <div class="eyebrow">Pilotage</div>
+        <h1>L’équipe, <span class="serif" style="display:inline">en direct.</span></h1>
+      </div>
+      <div class="chips" role="group" aria-label="Période" id="periodes"></div>
+    </div>
+    <div id="equipe"></div>
+  </section>
+
+  <section id="view-appel" hidden>
     <div class="call-head">
       <div style="display:flex;flex-direction:column;gap:16px">
         <div class="eyebrow">Mode appel</div>
@@ -353,7 +418,9 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     companies: [], generatedAt: null,
     zone: "", q: "", cibles: [], signaux: [], hideTaken: false, shown: STEP,
     view: "appel", vue: "miens", statut: null,
-    current: null, reserving: false, skipped: new Set(), handled: new Set(), rappel: false, busy: false,
+    current: null, nextUp: null, reserving: false, prefetching: false, shownAt: 0, skipped: new Set(), handled: new Set(), rappel: false, autoStart: true,
+    role: null, isOwner: false, roster: new Map(), signups: new Map(), presence: new Map(), config: null, act: null,
+    period: "jour", teamDays: null, memberOpen: null, connecting: true,
     prospects: new Map(), // siren -> doc data
     db: null, user: null, meId: null, canWrite: true,
     open: null, notesUnsub: null, notes: [], profiles: {},
@@ -593,12 +660,12 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     $("drawer").querySelector(".close").focus();
   }
   function closeDrawer() {
-    st.open = null;
+    st.open = null; st.memberOpen = null;
     if (st.notesUnsub) { st.notesUnsub(); st.notesUnsub = null; }
     $("scrim").hidden = true; $("drawer").hidden = true; document.body.style.overflow = "";
   }
   $("scrim").addEventListener("click", closeDrawer);
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && st.open) closeDrawer(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && (st.open || st.memberOpen)) closeDrawer(); });
 
   function renderDrawer() {
     const p = st.prospects.get(st.open);
@@ -735,9 +802,11 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
   // ------------------------------------------------------------------ Mode appel
   const CLOSED = ["signe", "perdu", "rdv", "proposition", "mauvais_numero"];
   const LOCK_MS = 20 * 60 * 1000;
-  const today = () => new Date().toISOString().slice(0, 10);
-  const plusDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+  const localDate = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const today = () => localDate();
+  const plusDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return localDate(d); };
   const lockedByOther = (p) => p && p.lockedBy && p.lockedBy !== st.meId && p.lockedUntil && Date.parse(p.lockedUntil) > Date.now();
+  const companyBySiren = new Map();
 
   /** File d'appels : rappels arrivés à échéance d'abord, puis entreprises jamais appelées. */
   function queue() {
@@ -748,6 +817,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
       if (st.zone && c.department !== st.zone) continue;
       if (st.cibles.length && !st.cibles.includes(c.cible)) continue;
       if (c.cible === "difficulte" && st.signaux.length && !st.signaux.includes(c.sig)) continue;
+      if (c.siren === st.current || c.siren === st.nextUp) continue;
       const p = st.prospects.get(c.siren);
       if (!((p && p.phone) || c.phone)) continue;
       if (st.skipped.has(c.siren) || st.handled.has(c.siren) || lockedByOther(p)) continue;
@@ -757,52 +827,78 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
       if (p.nextAction && p.nextAction > t) continue;
       if (p.lastCallAt || p.nextAction) due.push(c); else fresh.push(c);
     }
-    // Rappels et prospects déjà suivis par moi aussi quand ils ne sont plus dans l'annuaire filtré
     return { list: [...due, ...fresh], due: due.length, fresh: fresh.length };
   }
 
+  /** Réserve une fiche 20 minutes : un collègue ne la verra pas pendant l'appel. */
   async function reserve(c) {
-    // Réserve la fiche pour 20 minutes : un collègue ne la verra pas pendant l'appel.
     const ref = st.db.doc("prospects/" + c.siren);
     const lease = await ref.acquire({ holder: st.meId, ttlMs: 15000 });
     if (!lease.acquired) return false;
     const snap = await ref.get();
     const p = snap.exists ? snap.data() : null;
-    const takenByOther = p && p.name && !p.reservedOnly && p.assignedTo && p.assignedTo !== st.meId;
-    if (takenByOther || lockedByOther(p)) return false;
+    if (p && p.name && !p.reservedOnly) {
+      // Contrôle sur la version à jour de la fiche (la liste locale peut avoir quelques secondes de retard)
+      if ((p.assignedTo && p.assignedTo !== st.meId) || CLOSED.includes(p.status) || (p.nextAction && p.nextAction > today())) return false;
+    }
+    if (lockedByOther(p)) return false;
     const lock = { lockedBy: st.meId, lockedUntil: new Date(Date.now() + LOCK_MS).toISOString(), assignedTo: st.meId, updatedAt: now() };
-    if (p && p.name) await ref.update(lock);
-    else await ref.set({
+    const body = p && p.name ? { ...p, ...lock } : {
       siren: c.siren, name: c.name, activity: c.activity || null, city: c.city || null, postalCode: c.postalCode || null,
       address: c.address || null, department: c.department || null, headcount: c.headcount || null, cible: c.cible,
       signal: c.signal || null, pitch: c.pitch || null, dirigeant: c.dirigeant || null,
       status: "a_appeler", createdBy: st.meId, createdAt: now(), attempts: 0, reservedOnly: true,
       phone: c.phone || null, email: null, website: c.website || null, nextAction: null, ...lock,
-    });
+    };
+    if (p && p.name) await ref.update(lock); else await ref.set(body);
+    st.prospects.set(c.siren, body); // affichage immédiat, sans attendre le retour de la base
     return true;
   }
 
-  async function nextCompany() {
-    if (st.reserving || !st.db) return;
-    st.reserving = true; st.rappel = false;
-    try {
-      for (const c of queue().list.slice(0, 15)) {
-        if (await reserve(c)) { st.current = c.siren; return; }
-        st.skipped.add(c.siren);
-      }
-      st.current = null;
-    } catch (e) { writeFailed(e); st.current = null; }
-    finally { st.reserving = false; render(); }
+  async function reserveFirstFree() {
+    for (const c of queue().list.slice(0, 15)) {
+      if (await reserve(c)) return c.siren;
+      st.skipped.add(c.siren);
+    }
+    return null;
   }
 
-  async function releaseCurrent() {
-    const siren = st.current; st.current = null;
+  /** Prépare la fiche suivante en arrière-plan pendant que le commercial est au téléphone. */
+  async function prefetch() {
+    if (st.prefetching || st.nextUp || !st.db) return;
+    st.prefetching = true;
+    try { st.nextUp = await reserveFirstFree(); } catch (e) { console.warn(e); }
+    st.prefetching = false;
+    if (st.view === "appel") renderCallKpis();
+  }
+
+  async function nextCompany() {
+    if (!st.db || st.reserving) return;
+    st.rappel = false; st.draftNote = "";
+    if (st.nextUp) {
+      st.current = st.nextUp; st.nextUp = null; st.shownAt = Date.now();
+      render(); prefetch(); return;
+    }
+    st.reserving = true; render();
+    try { st.current = await reserveFirstFree(); st.shownAt = Date.now(); }
+    catch (e) { writeFailed(e); st.current = null; }
+    st.reserving = false; render();
+    if (st.current) prefetch();
+  }
+
+  async function release(siren) {
     if (!siren || !st.db) return;
     const p = st.prospects.get(siren);
     try {
-      if (p && p.reservedOnly && p.lockedBy === st.meId) await st.db.doc("prospects/" + siren).delete();
+      if (p && p.reservedOnly && p.lockedBy === st.meId) { st.prospects.delete(siren); await st.db.doc("prospects/" + siren).delete(); }
       else if (p) await st.db.doc("prospects/" + siren).update({ lockedBy: null, lockedUntil: null });
     } catch (e) { console.warn(e); }
+  }
+  /** Libère la fiche affichée et celle préparée (changement de zone, de cibles, fermeture). */
+  function releaseAll() {
+    const a = st.current, b = st.nextUp;
+    st.current = null; st.nextUp = null; st.autoStart = true;
+    release(a); release(b);
   }
 
   const OUTCOMES = {
@@ -813,8 +909,8 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     mauvais: { label: "Mauvais numéro", key: "5" },
   };
 
-  async function logOutcome(kind, date) {
-    const siren = st.current; if (!siren || st.busy) return;
+  function logOutcome(kind, date) {
+    const siren = st.current; if (!siren) return;
     const p = st.prospects.get(siren) || {};
     const attempts = (p.attempts || 0) + 1;
     const patch = { reservedOnly: false, attempts, lastCallAt: now(), lastCallBy: st.meId, lastResult: kind, lockedBy: null, lockedUntil: null, updatedAt: now(), assignedTo: st.meId };
@@ -823,66 +919,88 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     if (kind === "rdv") Object.assign(patch, { status: "rdv", nextAction: date || null });
     if (kind === "perdu") Object.assign(patch, { status: "perdu", nextAction: null });
     if (kind === "mauvais") Object.assign(patch, { status: "mauvais_numero", nextAction: null });
-    const noteEl = $("call-note");
-    const extra = noteEl ? noteEl.value.trim() : "";
+    const extra = (st.draftNote || "").trim();
     const when = patch.nextAction ? ` (le ${new Date(patch.nextAction + "T12:00").toLocaleDateString("fr-FR")})` : "";
-    st.busy = true; renderCall();
-    try {
-      await st.db.doc("prospects/" + siren).update(patch);
-      // Mise à jour locale immédiate : la fiche ne doit pas revenir avant la confirmation de la base.
-      st.prospects.set(siren, { ...p, ...patch });
-      st.handled.add(siren);
-      await st.db.collection("prospects/" + siren + "/notes").add({ author: st.meId, content: `${OUTCOMES[kind].label}${when}${extra ? " — " + extra.slice(0, 1000) : ""}`, createdAt: now() });
-      st.current = null;
-    } catch (e) { writeFailed(e); }
-    st.busy = false;
+    const seconds = Math.round((Date.now() - (st.shownAt || Date.now())) / 1000);
+
+    // 1. L'écran passe tout de suite à la fiche suivante…
+    st.prospects.set(siren, { ...p, ...patch });
+    st.handled.add(siren);
+    recordCall(siren, kind, seconds);
+    st.current = null;
     nextCompany();
+
+    // 2. … et l'enregistrement se fait en arrière-plan.
+    (async () => {
+      try {
+        await st.db.doc("prospects/" + siren).update(patch);
+        await st.db.collection("prospects/" + siren + "/notes").add({ author: st.meId, content: `${OUTCOMES[kind].label}${when}${extra ? " — " + extra.slice(0, 1000) : ""}`, createdAt: now() });
+      } catch (e) { writeFailed(e); st.saveError = true; render(); }
+    })();
+  }
+
+  const fmtDur = (sec) => {
+    sec = Math.max(0, Math.round(sec));
+    const hh = Math.floor(sec / 3600), mm = Math.floor((sec % 3600) / 60);
+    return hh ? `${hh} h ${String(mm).padStart(2, "0")}` : `${mm} min`;
+  };
+  const fmtClock = (sec) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, "0")}`;
+
+  function renderCallKpis() {
+    const q = queue();
+    const a = st.act;
+    const calls = a ? a.calls.length : 0;
+    const rdv = a ? a.calls.filter((c) => c.r === "rdv").length : 0;
+    const goal = myGoal();
+    const pct = goal ? Math.min(100, Math.round((calls / goal) * 100)) : 0;
+    $("kpis").replaceChildren(...[
+      h("span", {}, h("b", {}, fmtN(calls)), "appels aujourd’hui"),
+      h("span", {}, h("b", {}, fmtN(rdv)), "RDV"),
+      h("span", {}, h("b", {}, a ? fmtDur(a.activeSec) : "—"), "en ligne"),
+      h("span", {}, h("b", {}, fmtN(q.due)), "rappels prévus"),
+      h("span", {}, h("b", {}, fmtN(q.fresh + (st.nextUp ? 1 : 0))), "dans la file"),
+      goal ? h("div", { class: "goal" },
+        h("span", { class: "hint" }, `Objectif du jour : ${calls} / ${goal} appels`),
+        h("div", { class: "bar" + (calls >= goal ? " done" : ""), role: "progressbar", "aria-valuenow": String(pct), "aria-valuemin": "0", "aria-valuemax": "100", "aria-label": "Objectif d’appels du jour" }, h("span", { style: `width:${pct}%` }))) : null].filter(Boolean));
   }
 
   function renderCall() {
-    // Cibles (rapide)
     $("cibles-appel").replaceChildren(...CIBLES.map(([k, l]) => h("button", {
       class: "chip small", type: "button", "aria-pressed": String(st.cibles.includes(k)), title: CIBLE_HINT[k],
-      onclick: () => { st.cibles = st.cibles.includes(k) ? st.cibles.filter((x) => x !== k) : [...st.cibles, k]; persist(); releaseCurrent(); render(); },
+      onclick: () => { st.cibles = st.cibles.includes(k) ? st.cibles.filter((x) => x !== k) : [...st.cibles, k]; persist(); releaseAll(); st.skipped.clear(); render(); },
     }, l)));
-
-    const q = queue();
-    const t = today();
-    const mine = [...st.prospects.values()].filter((p) => p.lastCallBy === st.meId && (p.lastCallAt || "").slice(0, 10) === t);
-    $("kpis").replaceChildren(
-      h("span", {}, h("b", {}, fmtN(mine.length)), "appels aujourd’hui"),
-      h("span", {}, h("b", {}, fmtN(mine.filter((p) => p.lastResult === "rdv").length)), "RDV aujourd’hui"),
-      h("span", {}, h("b", {}, fmtN(q.due)), "rappels prévus"),
-      h("span", {}, h("b", {}, fmtN(q.fresh)), "à appeler dans la file"));
+    renderCallKpis();
 
     const box = $("call");
     if (!st.companies.length) { box.replaceChildren(h("div", { class: "empty" }, "Chargement de l’annuaire…")); return; }
-    if (!st.db) { box.replaceChildren(h("div", { class: "empty" }, "Le mode appel partage la file entre commerciaux : ouvrez la page connecté à claude.ai pour commencer.")); return; }
-    if (!st.canWrite) { box.replaceChildren(h("div", { class: "empty" }, "Votre accès permet de consulter la page, pas d’appeler depuis la file. Demandez l’accès « Contributeur » à la personne qui vous a partagé la page.")); return; }
 
     const p = st.current && st.prospects.get(st.current);
-    if (!st.current || !p || !p.name) {
-      if (st.current && (!p || !p.name)) { box.replaceChildren(h("div", { class: "empty" }, "Préparation de la fiche…")); return; }
+    if (!st.current || !p) {
+      const q = queue();
+      if (st.reserving) { box.replaceChildren(h("div", { class: "empty" }, "Ouverture de la fiche…")); return; }
+      if (q.list.length && st.autoStart) { st.autoStart = false; nextCompany(); return; }
       const withoutPhone = st.companies.filter((c) => (!st.zone || c.department === st.zone) && !c.phone && !(st.prospects.get(c.siren) || {}).phone).length;
       box.replaceChildren(q.list.length
         ? h("div", { class: "call-card", style: "align-items:flex-start" },
             h("h2", {}, `${fmtN(q.list.length)} entreprise${q.list.length > 1 ? "s" : ""} prête${q.list.length > 1 ? "s" : ""} à appeler`),
-            h("p", { class: "say" }, "Les rappels prévus passent en premier. Chaque fiche ouverte est réservée pour vous pendant 20 minutes."),
-            h("button", { class: "btn", type: "button", disabled: st.reserving, onclick: nextCompany }, st.reserving ? "Ouverture…" : "Commencer les appels"),
-            h("div", { class: "hint" }, "Raccourcis : 1 à 5 pour le résultat de l’appel, Entrée pour commencer."))
+            h("button", { class: "btn", type: "button", onclick: nextCompany }, "Reprendre les appels"),
+            h("div", { class: "hint" }, "Raccourcis : 1 à 5 pour le résultat, Entrée pour reprendre."))
         : h("div", { class: "empty" },
             h("p", { style: "margin:0 0 8px" }, "Plus aucune entreprise à appeler avec ces filtres pour le moment."),
-            withoutPhone ? h("p", { class: "hint", style: "margin:0" }, `${fmtN(withoutPhone)} entreprises de cette zone n’ont pas encore de numéro. Elles entreront dans la file dès qu’il sera ajouté (Google Maps).`) : null,
+            withoutPhone ? h("p", { class: "hint", style: "margin:0" }, `${fmtN(withoutPhone)} entreprises de cette zone attendent leur numéro : la mise à jour de nuit les ajoute au fur et à mesure.`) : null,
             st.skipped.size ? h("button", { class: "link", type: "button", onclick: () => { st.skipped.clear(); render(); } }, "Revoir les fiches passées") : null));
       return;
     }
 
-    const c = st.companies.find((x) => x.siren === st.current) || p;
+    const c = companyBySiren.get(st.current) || p;
     const phone = p.phone || c.phone;
     const meta = [p.activity, [p.postalCode, p.city].filter(Boolean).join(" "), p.headcount].filter(Boolean).join(" · ");
+    const next = st.nextUp && (st.prospects.get(st.nextUp) || companyBySiren.get(st.nextUp));
     const card = h("article", { class: "call-card" },
       h("div", { class: "fiche-top" }, h("span", { class: "cat" }, cibleLabel(p.cible)),
-        p.attempts ? h("span", { class: "tag taken" }, `${p.attempts}e tentative`) : h("span", { class: "tag" }, "Premier appel")),
+        h("span", { class: "row", style: "gap:10px;flex:none" },
+          h("span", { class: "hint timer", id: "call-timer" }, fmtClock((Date.now() - st.shownAt) / 1000)),
+          p.attempts ? h("span", { class: "tag taken" }, `${p.attempts + 1}e tentative`) : h("span", { class: "tag" }, "Premier appel"))),
       h("div", { style: "display:flex;flex-direction:column;gap:8px" }, h("h2", {}, p.name), meta ? h("div", { class: "meta" }, meta) : null),
       h("div", { class: "row" },
         h("a", { class: "appel big-call", href: telHref(phone) }, h("span", { class: "num" }, ICON.phone(), h("span", {}, phone)), h("span", { class: "cta" }, "Appeler")),
@@ -899,23 +1017,21 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
         st.notes.slice(0, 4).map((n) => h("div", {}, `${new Date(n.createdAt).toLocaleDateString("fr-FR")} · ${personName(n.author)} · ${n.content}`))) : null);
 
     const btn = (kind, extraClass) => h("button", {
-      class: "outcome" + (OUTCOMES[kind].win ? " win" : "") + (extraClass ? " " + extraClass : ""), type: "button", disabled: st.busy,
+      class: "outcome" + (OUTCOMES[kind].win ? " win" : "") + (extraClass ? " " + extraClass : ""), type: "button",
       onclick: () => (kind === "rappeler" || kind === "rdv") && !st.rappel ? (st.rappel = kind, renderCall()) : logOutcome(kind),
     }, OUTCOMES[kind].label, h("kbd", {}, OUTCOMES[kind].key));
 
     const side = h("div", { class: "side" },
+      st.saveError ? h("div", { class: "alert" }, "Un résultat n’a pas pu être enregistré. Vérifiez votre connexion, puis rechargez la page.") : null,
       h("div", { class: "say-label" }, "Résultat de l’appel"),
       h("div", { class: "outcomes" }, btn("pas_reponse", "wide"), btn("rappeler"), btn("rdv"), btn("perdu"), btn("mauvais")));
     if (st.rappel) {
       const kind = st.rappel;
-      const pick = (label, d) => h("button", { class: "chip small", type: "button", disabled: st.busy, onclick: () => logOutcome(kind, d) }, label);
+      const pick = (label, d) => h("button", { class: "chip small", type: "button", onclick: () => logOutcome(kind, d) }, label);
       const custom = h("input", { id: "call-date", class: "input", type: "date", min: today() });
       side.append(h("div", { class: "when" },
-        h("span", { class: "hint", style: "width:100%" }, kind === "rdv" ? "Date du rendez-vous :" : "Rappeler quand ?"),
-        kind === "rdv" ? null : pick("Demain", plusDays(1)),
-        kind === "rdv" ? null : pick("Dans 3 jours", plusDays(3)),
-        kind === "rdv" ? null : pick("Dans 1 semaine", plusDays(7)),
-        kind === "rdv" ? pick("Sans date", null) : null,
+        h("span", { class: "hint", style: "width:100%" }, kind === "rdv" ? "Date du rendez-vous :" : "Rappeler quand ? (touches 1, 2, 3)"),
+        kind === "rdv" ? pick("Sans date", null) : [pick("Demain", plusDays(1)), pick("Dans 3 jours", plusDays(3)), pick("Dans 1 semaine", plusDays(7))],
         custom,
         h("button", { class: "chip small", type: "button", onclick: () => custom.value && logOutcome(kind, custom.value) }, "Valider"),
         h("button", { class: "link", type: "button", onclick: () => { st.rappel = false; renderCall(); } }, "Annuler")));
@@ -923,21 +1039,30 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     side.append(
       h("label", { class: "label", for: "call-note" }, "Note (facultatif)"),
       h("input", { id: "call-note", class: "input", type: "text", maxlength: "300", placeholder: "Ex. : standardiste, rappeler après 14 h", value: st.draftNote || "", oninput: (e) => { st.draftNote = e.target.value; } }),
-      h("button", { class: "link skip", type: "button", disabled: st.busy, onclick: async () => { st.skipped.add(st.current); st.draftNote = ""; await releaseCurrent(); nextCompany(); } }, "Passer sans appeler"),
+      next ? h("div", { class: "next-up" }, "Ensuite : ", h("b", {}, next.name), next.city ? ` · ${next.city}` : "") : null,
+      h("button", { class: "link skip", type: "button", onclick: () => { const s = st.current; st.skipped.add(s); st.current = null; release(s); nextCompany(); } }, "Passer sans appeler"),
       h("button", { class: "link skip", type: "button", onclick: () => openDrawer(p.siren) }, "Ouvrir la fiche complète"));
 
     box.replaceChildren(h("div", { class: "call" }, card, side));
   }
+
+  // Chronomètre de la fiche affichée : seul ce texte est mis à jour, pas tout l'écran.
+  setInterval(() => {
+    const el = document.getElementById("call-timer");
+    if (el && st.shownAt) el.textContent = fmtClock((Date.now() - st.shownAt) / 1000);
+  }, 1000);
 
   // Historique de la fiche en cours (abonnement unique, renouvelé quand la fiche change)
   let callNotesFor = null, callNotesUnsub = null;
   function watchCallNotes() {
     if (callNotesFor === st.current || !st.db) return;
     if (callNotesUnsub) callNotesUnsub();
-    callNotesFor = st.current; st.notes = []; callNotesUnsub = null; st.draftNote = "";
+    callNotesFor = st.current; st.notes = []; callNotesUnsub = null;
     if (!st.current) return;
+    const p = st.prospects.get(st.current);
+    if (!p || !p.attempts) return; // premier appel : pas d'historique à charger
     callNotesUnsub = st.db.collection("prospects/" + st.current + "/notes").orderBy("createdAt", "desc").limit(10).onSnapshot(async (snap) => {
-      if (st.open) return; // le panneau fiche gère alors ses propres notes
+      if (st.open) return;
       st.notes = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       await resolve(st.notes.map((n) => n.author));
       if (st.view === "appel") renderCall();
@@ -947,23 +1072,456 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
   document.addEventListener("keydown", (e) => {
     if (st.view !== "appel" || st.open || e.target.closest("input, textarea, select")) return;
     if (!st.current && e.key === "Enter" && queue().list.length) { e.preventDefault(); nextCompany(); return; }
+    if (!st.current) return;
+    if (st.rappel === "rappeler" && ["1", "2", "3"].includes(e.key)) { e.preventDefault(); logOutcome("rappeler", plusDays({ 1: 1, 2: 3, 3: 7 }[e.key])); return; }
+    if (e.key === "Escape" && st.rappel) { st.rappel = false; renderCall(); return; }
     const kind = Object.keys(OUTCOMES).find((k) => OUTCOMES[k].key === e.key);
-    if (kind && st.current && !st.busy) { e.preventDefault(); (kind === "rappeler" || kind === "rdv") ? (st.rappel = kind, renderCall()) : logOutcome(kind); }
+    if (kind) { e.preventDefault(); (kind === "rappeler" || kind === "rdv") ? (st.rappel = kind, renderCall()) : logOutcome(kind); }
   });
-  window.addEventListener("pagehide", () => { releaseCurrent(); });
+  window.addEventListener("pagehide", () => { releaseAll(); flushActivity(true); });
+
+
+  // ------------------------------------------------------------------ Accès : inscription, rôles
+  const ROLES = { commercial: "Commercial", chef: "Chef d’équipe", admin: "Admin" };
+  const isManager = () => st.role === "chef" || st.role === "admin";
+  const memberName = (m, id) => (m && (m.firstName || m.lastName) ? `${m.firstName || ""} ${m.lastName || ""}`.trim() : personName(id));
+
+  function computeRole() {
+    const m = st.roster.get(st.meId);
+    if (st.isOwner) st.role = "admin";
+    else st.role = m && m.status === "active" ? m.role : null;
+  }
+
+  function renderGate() {
+    const g = $("gate");
+    const m = st.roster.get(st.meId);
+    const sign = st.signups.get(st.meId);
+    if (st.connecting) { g.replaceChildren(h("div", { class: "empty" }, "Connexion…")); return; }
+    if (!st.db || !st.meId) {
+      g.replaceChildren(h("div", { class: "eyebrow" }, "Espace commerciaux"),
+        h("h1", {}, "Connexion ", h("span", { class: "serif", style: "display:inline" }, "requise.")),
+        h("p", { class: "lede" }, "Ouvrez cette page en étant connecté à votre compte claude.ai : il sert d’identifiant, sans mot de passe à retenir."));
+      return;
+    }
+    if (m && (m.status === "refused" || m.status === "disabled")) {
+      g.replaceChildren(h("div", { class: "eyebrow" }, "Accès"),
+        h("h1", {}, m.status === "refused" ? "Inscription " : "Accès ", h("span", { class: "serif", style: "display:inline" }, m.status === "refused" ? "refusée." : "suspendu.")),
+        h("p", { class: "lede" }, "Rapprochez-vous de votre chef d’équipe si vous pensez qu’il s’agit d’une erreur."));
+      return;
+    }
+    if (sign && !m) {
+      g.replaceChildren(h("div", { class: "eyebrow" }, "Inscription envoyée"),
+        h("h1", {}, "En attente ", h("span", { class: "serif", style: "display:inline" }, "de validation.")),
+        h("p", { class: "lede" }, h("span", { class: "pending-dot", "aria-hidden": "true" }),
+          `Merci ${sign.firstName}. Votre chef d’équipe doit valider votre inscription. Cette page s’ouvrira toute seule dès que ce sera fait.`),
+        h("button", { class: "link", type: "button", onclick: () => { st.editSignup = true; renderSignupForm(sign); } }, "Modifier mon inscription"));
+      if (st.editSignup) renderSignupForm(sign);
+      return;
+    }
+    renderSignupForm(null);
+  }
+
+  function renderSignupForm(prev) {
+    const g = $("gate");
+    let wanted = (prev && prev.role) || "commercial";
+    const err = h("div", { class: "alert", role: "alert", hidden: true });
+    const roleBtns = h("div", { class: "seg", role: "group", "aria-label": "Rôle" });
+    const drawRoles = () => roleBtns.replaceChildren(...[["commercial", "Commercial"], ["chef", "Chef d’équipe"]].map(([k, l]) =>
+      h("button", { class: "chip small", type: "button", "aria-pressed": String(wanted === k), onclick: () => { wanted = k; drawRoles(); } }, l)));
+    drawRoles();
+    const field = (id, label, type, value, extra) => h("div", { class: "field" }, h("label", { class: "label", for: id }, label),
+      h("input", { id, class: "input", type, value: value || "", required: true, ...extra }));
+    const submit = h("button", { class: "btn", type: "submit" }, prev ? "Mettre à jour" : "Envoyer mon inscription");
+    g.replaceChildren(
+      h("div", { class: "eyebrow" }, "Espace commerciaux"),
+      h("h1", {}, "Inscription, ", h("span", { class: "serif", style: "display:inline" }, "une minute.")),
+      h("p", { class: "lede", style: "max-width:none" }, "Votre compte claude.ai sert d’identifiant. Remplissez ces informations : votre chef d’équipe valide ensuite votre accès."),
+      h("form", { class: "form", onsubmit: async (e) => {
+        e.preventDefault();
+        const val = (id) => $(id).value.trim();
+        if (!val("su-first") || !val("su-last")) { err.hidden = false; err.textContent = "Indiquez votre prénom et votre nom."; return; }
+        submit.disabled = true; err.hidden = true;
+        try {
+          await st.db.doc("signups/" + st.meId).set({
+            firstName: val("su-first").slice(0, 60), lastName: val("su-last").slice(0, 60), phone: val("su-phone").slice(0, 30),
+            role: wanted, message: val("su-msg").slice(0, 300), createdAt: (prev && prev.createdAt) || now(), updatedAt: now(),
+          });
+          st.editSignup = false;
+          st.signups.set(st.meId, { firstName: val("su-first"), role: wanted });
+          render();
+        } catch (e2) {
+          submit.disabled = false; err.hidden = false;
+          err.textContent = e2 && e2.code === "invalid_argument"
+            ? "Votre accès à cette page ne permet pas de vous inscrire. Demandez à la personne qui vous l’a partagée l’accès « Contributeur »."
+            : "L’inscription n’a pas pu être envoyée. Vérifiez votre connexion et réessayez.";
+        }
+      } },
+        h("div", { class: "two" }, field("su-first", "Prénom", "text", prev && prev.firstName, { autocomplete: "given-name" }), field("su-last", "Nom", "text", prev && prev.lastName, { autocomplete: "family-name" })),
+        field("su-phone", "Téléphone", "tel", prev && prev.phone, { autocomplete: "tel", required: false }),
+        h("div", { class: "field" }, h("span", { class: "label" }, "Je suis"), roleBtns),
+        h("div", { class: "field" }, h("label", { class: "label", for: "su-msg" }, "Message pour le chef (facultatif)"),
+          h("input", { id: "su-msg", class: "input", type: "text", value: (prev && prev.message) || "", placeholder: "Ex. : équipe Lyon, arrivé lundi" })),
+        err, submit));
+  }
+
+  async function approve(uid, role) {
+    const s = st.signups.get(uid);
+    if (!s) return;
+    try {
+      await st.db.doc("roster/" + uid).set({
+        firstName: s.firstName, lastName: s.lastName, phone: s.phone || null, role: role || "commercial", status: "active",
+        approvedBy: st.meId, approvedAt: now(), createdAt: s.createdAt || now(), goal: null,
+      });
+    } catch (e) { managerWriteFailed(e); }
+  }
+  async function refuse(uid) {
+    const s = st.signups.get(uid);
+    try { await st.db.doc("roster/" + uid).set({ firstName: s.firstName, lastName: s.lastName, status: "refused", role: "commercial", approvedBy: st.meId, approvedAt: now() }); }
+    catch (e) { managerWriteFailed(e); }
+  }
+  async function updateMember(uid, patch) {
+    try { await st.db.doc("roster/" + uid).update({ ...patch, updatedAt: now() }); }
+    catch (e) { managerWriteFailed(e); }
+  }
+  function managerWriteFailed(e) {
+    console.warn(e);
+    st.teamError = e && e.code === "invalid_argument"
+      ? "Cette action demande l’accès « Éditeur » à la page. L’administrateur peut vous le donner dans le menu Partager."
+      : "L’enregistrement a échoué. Vérifiez votre connexion et réessayez.";
+    render();
+  }
+
+  // ------------------------------------------------------------------ Suivi d'activité (temps en ligne, appels)
+  // Une fiche par commercial et par jour : activity/<id>/days/<date>.
+  // Le temps n'est compté que lorsque la page est visible et utilisée (souris, clavier) depuis moins de 3 minutes.
+  let lastInput = Date.now(), lastTick = Date.now(), dirty = false, flushTimer = null;
+  ["pointerdown", "keydown", "scroll", "pointermove"].forEach((ev) => addEventListener(ev, () => { lastInput = Date.now(); }, { passive: true }));
+
+  async function loadActivity() {
+    const date = today();
+    try {
+      const snap = await st.db.doc(`activity/${st.meId}/days/${date}`).get();
+      const d = snap.exists ? snap.data() : null;
+      st.act = { date, activeSec: (d && d.activeSec) || 0, firstSeen: (d && d.firstSeen) || now(), lastSeen: now(), calls: (d && d.calls) || [] };
+    } catch (e) { st.act = { date, activeSec: 0, firstSeen: now(), lastSeen: now(), calls: [] }; }
+    dirty = true; flushActivity();
+  }
+  function tickActivity() {
+    if (!st.act) return;
+    const t = Date.now();
+    if (st.act.date !== today()) { flushActivity(true); st.act = { date: today(), activeSec: 0, firstSeen: now(), lastSeen: now(), calls: [] }; }
+    const active = document.visibilityState === "visible" && t - lastInput < 3 * 60 * 1000;
+    if (active) { st.act.activeSec += Math.min(60, (t - lastTick) / 1000); st.act.lastSeen = now(); dirty = true; }
+    lastTick = t;
+  }
+  setInterval(tickActivity, 15000);
+  setInterval(() => flushActivity(), 120000);
+  document.addEventListener("visibilitychange", () => { tickActivity(); if (document.visibilityState === "hidden") flushActivity(true); else lastInput = Date.now(); });
+
+  function recordCall(siren, kind, seconds) {
+    if (!st.act) return;
+    tickActivity();
+    st.act.calls.push({ t: now(), r: kind, d: seconds, s: siren });
+    dirty = true;
+    clearTimeout(flushTimer); flushTimer = setTimeout(() => flushActivity(), 4000);
+  }
+  let flushing = false;
+  async function flushActivity(force) {
+    if (!st.act || !st.db || !st.meId || !st.role || (!dirty && !force) || flushing) return;
+    flushing = true; dirty = false;
+    const a = st.act;
+    try {
+      await st.db.doc(`activity/${st.meId}/days/${a.date}`).set({ date: a.date, activeSec: Math.round(a.activeSec), firstSeen: a.firstSeen, lastSeen: a.lastSeen, calls: a.calls.slice(-1500) });
+      await st.db.doc(`activity/${st.meId}`).set({ lastSeen: a.lastSeen, date: a.date, view: st.view, callsToday: a.calls.length });
+    } catch (e) { dirty = true; console.warn(e); }
+    flushing = false;
+  }
+
+  function myGoal() {
+    const m = st.roster.get(st.meId);
+    return (m && m.goal) || (st.config && st.config.callsPerDay) || 0;
+  }
+
+  // ------------------------------------------------------------------ Tableau de bord équipe
+  const PERIODS = [["jour", "Aujourd’hui", 0], ["semaine", "7 jours", 6], ["mois", "30 jours", 29]];
+  let teamTimer = null;
+
+  async function loadTeam(force) {
+    if (!isManager() || !st.db) return;
+    if (st.teamLoading && !force) return;
+    st.teamLoading = true;
+    const days = 29;
+    const from = plusDays(-days);
+    const members = [...st.roster.entries()].filter(([, m]) => m.status === "active" || m.status === "disabled");
+    const out = new Map();
+    await Promise.all(members.map(async ([uid]) => {
+      try {
+        const snap = await st.db.collection(`activity/${uid}/days`).where("date", ">=", from).limit(40).get();
+        out.set(uid, snap.docs.map((d) => d.data()));
+      } catch (e) { out.set(uid, []); }
+    }));
+    st.teamDays = out;
+    st.teamLoadedAt = Date.now();
+    st.teamLoading = false;
+    if (st.view === "equipe") renderTeam();
+  }
+
+  function periodDays(list) {
+    const p = PERIODS.find((x) => x[0] === st.period) || PERIODS[0];
+    const from = plusDays(-p[2]);
+    return (list || []).filter((d) => d.date >= from);
+  }
+
+  /** Statistiques d'un commercial sur une liste de journées. */
+  function stats(days) {
+    const calls = days.flatMap((d) => d.calls || []);
+    const activeSec = days.reduce((a, d) => a + (d.activeSec || 0), 0);
+    const by = (r) => calls.filter((c) => c.r === r).length;
+    // Temps moyen entre deux appels : écarts de moins de 30 min dans une même journée
+    const gaps = [];
+    for (const d of days) {
+      const ts = (d.calls || []).map((c) => Date.parse(c.t)).sort((a, b) => a - b);
+      for (let i = 1; i < ts.length; i++) { const g = (ts[i] - ts[i - 1]) / 1000; if (g < 1800) gaps.push(g); }
+    }
+    const avgGap = gaps.length ? gaps.reduce((a, b) => a + b, 0) / gaps.length : null;
+    return {
+      calls: calls.length, activeSec, rdv: by("rdv"), noAnswer: by("pas_reponse"), callback: by("rappeler"), lost: by("perdu"), wrong: by("mauvais"),
+      perHour: activeSec > 600 ? calls.length / (activeSec / 3600) : null, avgGap, daysActive: days.filter((d) => (d.activeSec || 0) > 60).length,
+      reached: calls.length - by("pas_reponse") - by("mauvais"),
+    };
+  }
+
+  /** Alertes du jour pour un commercial (état + libellé, jamais la couleur seule). */
+  function alertsFor(uid) {
+    const pres = st.presence.get(uid);
+    const todayDay = (st.teamDays.get(uid) || []).find((d) => d.date === today());
+    const s = stats(todayDay ? [todayDay] : []);
+    const m = st.roster.get(uid) || {};
+    const goal = m.role === "admin" ? 0 : m.goal || (st.config && st.config.callsPerDay) || 0;
+    const hour = new Date().getHours() + new Date().getMinutes() / 60;
+    const out = [];
+    const lastSeen = pres && pres.date === today() ? Date.parse(pres.lastSeen) : null;
+    if (m.status === "disabled") return [["", "Accès suspendu"]];
+    if (lastSeen && Date.now() - lastSeen < 4 * 60 * 1000) out.push(["live", "En ligne"]);
+    else if (lastSeen) {
+      const mins = Math.round((Date.now() - lastSeen) / 60000);
+      if (hour < 18.5 && mins >= 20) out.push(["warn", `Inactif depuis ${mins >= 60 ? fmtDur(mins * 60) : mins + " min"}`]);
+      else out.push(["", `Vu à ${new Date(lastSeen).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`]);
+    } else if (hour >= 10 && new Date().getDay() % 6 !== 0) out.push(["bad", "Pas connecté aujourd’hui"]);
+    if (goal) {
+      const pace = Math.max(0, Math.min(1, (hour - 9) / 9));
+      if (s.calls >= goal) out.push(["good", "Objectif atteint"]);
+      else if (pace > 0.15 && s.calls < goal * pace * 0.75) out.push(["warn", `En retard : ${s.calls} / ${goal}`]);
+    }
+    return out;
+  }
+  const pills = (list) => list.map(([k, l]) => h("span", { class: "pill " + k }, k === "bad" ? "⚠ " + l : k === "warn" ? "◔ " + l : k === "good" ? "✓ " + l : l));
+
+  function barChart({ values, labels, title, unit, height = 160 }) {
+    const W = 460, H = height, pad = { l: 30, r: 6, t: 10, b: 26 };
+    const max = Math.max(1, ...values);
+    const step = Math.ceil(max / 4) || 1;
+    const top = step * 4;
+    const n = values.length, bw = (W - pad.l - pad.r) / n;
+    const y = (v) => pad.t + (H - pad.t - pad.b) * (1 - v / top);
+    let svgs = "";
+    for (let i = 0; i <= 4; i++) {
+      const v = step * i, yy = y(v);
+      svgs += `<line x1="${pad.l}" x2="${W - pad.r}" y1="${yy}" y2="${yy}" stroke="var(--line)" stroke-width="1"/>`;
+      svgs += `<text x="${pad.l - 6}" y="${yy + 4}" text-anchor="end" font-size="12" fill="var(--muted)">${v}</text>`;
+    }
+    values.forEach((v, i) => {
+      const x = pad.l + i * bw + 1, w = Math.max(2, bw - 2), yy = y(v), hh = H - pad.b - yy;
+      if (v > 0) svgs += `<path data-i="${i}" d="M${x},${H - pad.b} V${yy + Math.min(4, hh)} Q${x},${yy} ${x + Math.min(4, w / 2)},${yy} H${x + w - Math.min(4, w / 2)} Q${x + w},${yy} ${x + w},${yy + Math.min(4, hh)} V${H - pad.b} Z" fill="var(--brand)"/>`;
+      svgs += `<rect data-i="${i}" x="${pad.l + i * bw}" y="${pad.t}" width="${bw}" height="${H - pad.t - pad.b}" fill="transparent"/>`;
+      const every = Math.ceil(n / 7);
+      if (i % every === 0) svgs += `<text x="${x + w / 2}" y="${H - 6}" text-anchor="middle" font-size="12" fill="var(--muted)">${labels[i]}</text>`;
+    });
+    const wrap = h("div", { class: "chart" }, h("div", { class: "chart-title" }, title));
+    const holder = document.createElement("div");
+    holder.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${title}">${svgs}</svg>`;
+    const tip = h("div", { class: "tip", hidden: true });
+    holder.addEventListener("pointermove", (e) => {
+      const i = e.target.getAttribute && e.target.getAttribute("data-i");
+      if (i === null || i === undefined) { tip.hidden = true; return; }
+      const r = holder.getBoundingClientRect();
+      tip.hidden = false; tip.textContent = `${labels[i]} : ${values[i]} ${unit}`;
+      tip.style.left = (e.clientX - r.left) + "px"; tip.style.top = (e.clientY - r.top) + "px";
+    });
+    holder.addEventListener("pointerleave", () => { tip.hidden = true; });
+    holder.style.position = "relative";
+    holder.append(tip);
+    wrap.append(holder);
+    return wrap;
+  }
+
+  function renderTeam() {
+    $("periodes").replaceChildren(...PERIODS.map(([k, l]) => h("button", { class: "chip small", type: "button", "aria-pressed": String(st.period === k), onclick: () => { st.period = k; renderTeam(); } }, l)));
+    const box = $("equipe");
+    const parts = [];
+    if (st.teamError) parts.push(h("div", { class: "alert", role: "alert" }, st.teamError, " ", h("button", { class: "link", type: "button", onclick: () => { st.teamError = null; renderTeam(); } }, "Fermer")));
+
+    // Inscriptions à valider
+    const pending = [...st.signups.entries()].filter(([uid]) => !st.roster.has(uid));
+    if (pending.length) {
+      parts.push(h("div", { class: "section-title" }, h("h3", {}, `Inscriptions à valider (${pending.length})`)));
+      parts.push(h("div", { class: "signups" }, pending.map(([uid, s]) => {
+        const sel = h("select", { class: "input", "aria-label": "Rôle attribué" },
+          Object.entries(ROLES).filter(([k]) => st.role === "admin" || k === "commercial").map(([k, l]) => h("option", { value: k, selected: k === (s.role === "chef" && st.role === "admin" ? "chef" : "commercial") }, l)));
+        return h("div", { class: "signup" },
+          h("div", { class: "who-s" }, h("strong", {}, `${s.firstName} ${s.lastName}`),
+            h("span", { class: "hint" }, [s.role === "chef" ? "Demande : chef d’équipe" : "Demande : commercial", s.phone, s.createdAt ? "le " + new Date(s.createdAt).toLocaleDateString("fr-FR") : null].filter(Boolean).join(" · ")),
+            s.message ? h("span", { class: "hint" }, `« ${s.message} »`) : null),
+          h("div", { class: "acts" }, sel,
+            h("button", { class: "btn", type: "button", onclick: () => approve(uid, sel.value) }, "Accepter"),
+            h("button", { class: "btn ghost", type: "button", onclick: () => refuse(uid) }, "Refuser")));
+      })));
+    }
+
+    const members = [...st.roster.entries()].filter(([, m]) => m.status === "active" || m.status === "disabled");
+    if (!st.teamDays) {
+      parts.push(h("div", { class: "empty" }, "Chargement de l’activité de l’équipe…"));
+      box.replaceChildren(...parts); loadTeam(); return;
+    }
+    const rows = members.map(([uid, m]) => ({ uid, m, s: stats(periodDays(st.teamDays.get(uid))), today: (st.teamDays.get(uid) || []).find((d) => d.date === today()) }));
+    const all = stats(members.flatMap(([uid]) => periodDays(st.teamDays.get(uid))));
+    const online = members.filter(([uid]) => alertsFor(uid).some(([k]) => k === "live")).length;
+
+    parts.push(h("div", { class: "tiles" },
+      h("div", { class: "tile" }, h("span", { class: "n" }, fmtN(all.calls)), h("span", { class: "l" }, "appels")),
+      h("div", { class: "tile" }, h("span", { class: "n" }, fmtN(all.rdv)), h("span", { class: "l" }, "RDV pris")),
+      h("div", { class: "tile" }, h("span", { class: "n" }, all.reached ? Math.round((all.rdv / all.reached) * 100) + " %" : "—"), h("span", { class: "l" }, "RDV par personne jointe")),
+      h("div", { class: "tile" }, h("span", { class: "n" }, fmtDur(all.activeSec)), h("span", { class: "l" }, "temps en ligne cumulé")),
+      h("div", { class: "tile" }, h("span", { class: "n" }, `${online} / ${members.length}`), h("span", { class: "l" }, "en ligne maintenant"))));
+
+    parts.push(h("div", { class: "section-title" }, h("h3", {}, "Commerciaux"),
+      h("span", { class: "hint" }, st.teamLoadedAt ? `Mis à jour à ${new Date(st.teamLoadedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} · ` : "", h("button", { class: "link", type: "button", onclick: () => loadTeam(true) }, "Actualiser"))));
+    const isToday = st.period === "jour";
+    parts.push(rows.length ? h("div", { class: "table-wrap" }, h("table", {},
+      h("thead", {}, h("tr", {}, ["Commercial", isToday ? "Début – fin" : "Jours actifs", "Temps en ligne", "Appels", "Appels / h", "Entre 2 appels", "RDV", isToday ? "Objectif" : "Taux RDV", "État"].map((t) => h("th", {}, t)))),
+      h("tbody", {}, rows.sort((a, b) => (a.m.role === "admin") - (b.m.role === "admin") || b.s.calls - a.s.calls).map(({ uid, m, s, today: td }) => {
+        const goal = m.role === "admin" ? 0 : m.goal || (st.config && st.config.callsPerDay) || 0;
+        const pct = goal ? Math.min(100, Math.round((s.calls / goal) * 100)) : 0;
+        return h("tr", {},
+          h("td", {}, h("button", { class: "name-btn", type: "button", onclick: () => openMember(uid) }, memberName(m, uid)), h("div", { class: "hint" }, ROLES[m.role] || m.role)),
+          h("td", { class: "num-cell" }, isToday
+            ? (td ? `${new Date(td.firstSeen).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} – ${new Date(td.lastSeen).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}` : "—")
+            : `${s.daysActive} j`),
+          h("td", { class: "num-cell" }, s.activeSec ? fmtDur(s.activeSec) : "—"),
+          h("td", { class: "num-cell" }, fmtN(s.calls)),
+          h("td", { class: "num-cell" }, s.perHour ? s.perHour.toFixed(1).replace(".", ",") : "—"),
+          h("td", { class: "num-cell" }, s.avgGap ? fmtClock(s.avgGap) : "—"),
+          h("td", { class: "num-cell" }, fmtN(s.rdv)),
+          h("td", { class: "num-cell" }, isToday
+            ? (goal ? h("div", { style: "display:flex;flex-direction:column;gap:4px" }, `${s.calls} / ${goal}`, h("div", { class: "bar mini-bar" + (s.calls >= goal ? " done" : "") }, h("span", { style: `width:${pct}%` }))) : "—")
+            : (s.reached ? Math.round((s.rdv / s.reached) * 100) + " %" : "—")),
+          h("td", {}, h("div", { style: "display:flex;flex-wrap:wrap;gap:6px" }, pills(alertsFor(uid)))));
+      })))) : h("div", { class: "empty" }, "Aucun commercial validé pour l’instant. Les inscriptions à valider apparaissent ici."));
+
+    // Objectifs
+    const goalInput = h("input", { id: "goal-calls", class: "input", type: "number", min: "0", max: "500", value: (st.config && st.config.callsPerDay) || "" });
+    parts.push(h("div", { class: "section-title" }, h("h3", {}, "Objectif d’équipe")),
+      h("form", { class: "settings", onsubmit: async (e) => {
+        e.preventDefault();
+        try { await st.db.doc("config/objectifs").set({ callsPerDay: Number(goalInput.value) || 0, updatedAt: now(), updatedBy: st.meId }); }
+        catch (err) { managerWriteFailed(err); }
+      } },
+        h("div", { class: "field" }, h("label", { class: "label", for: "goal-calls" }, "Appels par jour et par commercial"), goalInput),
+        h("button", { class: "btn", type: "submit" }, "Enregistrer"),
+        h("span", { class: "hint" }, "Un objectif personnel peut être fixé dans la fiche de chaque commercial.")));
+
+    box.replaceChildren(...parts);
+  }
+
+  function openMember(uid) {
+    st.memberOpen = uid;
+    $("scrim").hidden = false; $("drawer").hidden = false; document.body.style.overflow = "hidden";
+    renderMember();
+    $("drawer").querySelector(".close").focus();
+  }
+
+  function renderMember() {
+    const uid = st.memberOpen, m = st.roster.get(uid) || {};
+    const days = st.teamDays.get(uid) || [];
+    const last30 = [...Array(30)].map((_, i) => plusDays(i - 29));
+    const byDate = new Map(days.map((d) => [d.date, d]));
+    const perDay = last30.map((d) => ((byDate.get(d) || {}).calls || []).length);
+    const s = stats(periodDays(days));
+    const hours = [...Array(14)].map((_, i) => i + 7);
+    const periodCalls = periodDays(days).flatMap((d) => d.calls || []);
+    const perHour = hours.map((hr) => periodCalls.filter((c) => new Date(c.t).getHours() === hr).length);
+    const recent = days.flatMap((d) => d.calls || []).sort((a, b) => b.t.localeCompare(a.t)).slice(0, 15);
+    const goalIn = h("input", { id: "m-goal", class: "input", type: "number", min: "0", max: "500", value: m.goal || "", placeholder: String((st.config && st.config.callsPerDay) || "") });
+    const pct = (n) => (s.calls ? Math.round((n / s.calls) * 100) + " %" : "—");
+
+    const d = $("drawer");
+    d.replaceChildren(
+      h("div", { class: "drawer-head" },
+        h("div", { style: "display:flex;flex-direction:column;gap:10px;min-width:0" },
+          h("div", { class: "eyebrow" }, ROLES[m.role] || "Commercial"),
+          h("h2", { id: "d-name" }, memberName(m, uid)),
+          h("div", { style: "display:flex;flex-wrap:wrap;gap:6px" }, pills(alertsFor(uid))),
+          m.phone ? h("div", { class: "row", style: "justify-content:flex-start" }, h("span", { class: "meta" }, m.phone), copyBtn(m.phone)) : null),
+        h("button", { class: "close", type: "button", "aria-label": "Fermer", onclick: closeDrawer }, "×")),
+      h("section", { class: "box" }, h("h4", {}, `Sur la période (${(PERIODS.find((x) => x[0] === st.period) || PERIODS[0])[1].toLowerCase()})`),
+        h("dl", { class: "kv" },
+          h("dt", {}, "Temps en ligne"), h("dd", {}, fmtDur(s.activeSec)),
+          h("dt", {}, "Appels"), h("dd", {}, fmtN(s.calls) + (s.perHour ? ` · ${s.perHour.toFixed(1).replace(".", ",")} par heure` : "")),
+          h("dt", {}, "Entre 2 appels"), h("dd", {}, s.avgGap ? fmtClock(s.avgGap) + " en moyenne" : "—"),
+          h("dt", {}, "RDV pris"), h("dd", {}, `${fmtN(s.rdv)} · ${s.reached ? Math.round((s.rdv / s.reached) * 100) + " % des personnes jointes" : "—"}`),
+          h("dt", {}, "Pas de réponse"), h("dd", {}, `${fmtN(s.noAnswer)} · ${pct(s.noAnswer)}`),
+          h("dt", {}, "À rappeler"), h("dd", {}, `${fmtN(s.callback)} · ${pct(s.callback)}`),
+          h("dt", {}, "Pas intéressé"), h("dd", {}, `${fmtN(s.lost)} · ${pct(s.lost)}`),
+          h("dt", {}, "Mauvais numéro"), h("dd", {}, `${fmtN(s.wrong)} · ${pct(s.wrong)}`))),
+      h("section", { class: "box" },
+        barChart({ values: perDay, labels: last30.map((x) => x.slice(8, 10) + "/" + x.slice(5, 7)), title: "Appels par jour · 30 derniers jours", unit: "appels" }),
+        barChart({ values: perHour, labels: hours.map((x) => x + " h"), title: "Appels par heure · période choisie", unit: "appels", height: 150 })),
+      h("section", { class: "box" }, h("h4", {}, "Derniers appels"),
+        recent.length ? h("ul", { class: "log" }, recent.map((c) => {
+          const co = companyBySiren.get(c.s) || st.prospects.get(c.s) || {};
+          return h("li", {}, h("span", {}, `${new Date(c.t).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })} · ${co.name || c.s}`), h("span", { class: "hint" }, `${(OUTCOMES[c.r] || {}).label || c.r}${c.d ? " · " + fmtClock(c.d) : ""}`));
+        })) : h("p", { class: "hint", style: "margin:0" }, "Aucun appel enregistré pour l’instant.")),
+      h("form", { class: "box", onsubmit: (e) => { e.preventDefault(); updateMember(uid, { goal: Number(goalIn.value) || null }); } },
+        h("h4", {}, "Objectif personnel"),
+        h("div", { class: "row" }, goalIn, h("button", { class: "btn", type: "submit" }, "Enregistrer")),
+        h("span", { class: "hint" }, "Laissez vide pour appliquer l’objectif d’équipe.")),
+      st.role === "admin" && uid !== st.meId ? h("section", { class: "box" }, h("h4", {}, "Administration"),
+        h("div", { class: "field" }, h("label", { class: "label", for: "m-role" }, "Rôle"),
+          h("select", { id: "m-role", class: "input", onchange: (e) => updateMember(uid, { role: e.target.value }) },
+            Object.entries(ROLES).map(([k, l]) => h("option", { value: k, selected: m.role === k }, l)))),
+        h("span", { class: "hint" }, "Un chef d’équipe a besoin de l’accès « Éditeur » dans le menu Partager pour voir les chiffres de l’équipe et valider les inscriptions."),
+        m.status === "disabled"
+          ? h("button", { class: "btn-outline", type: "button", onclick: () => updateMember(uid, { status: "active" }) }, "Réactiver l’accès")
+          : h("button", { class: "btn ghost", type: "button", onclick: () => updateMember(uid, { status: "disabled" }) }, "Suspendre l’accès")) : null);
+  }
 
   // ------------------------------------------------------------------ Rendu général
   function render() {
-    $("view-appel").hidden = st.view !== "appel";
-    $("tab-appel").setAttribute("aria-selected", String(st.view === "appel"));
-    $("view-annuaire").hidden = st.view !== "annuaire";
-    $("view-prospects").hidden = st.view !== "prospects";
-    $("tab-annuaire").setAttribute("aria-selected", String(st.view === "annuaire"));
-    $("tab-prospects").setAttribute("aria-selected", String(st.view === "prospects"));
+    computeRole();
+    const inApp = !!st.role;
+    $("view-gate").hidden = inApp;
+    $("nav").querySelectorAll(".tab").forEach((t) => { t.hidden = !inApp; });
+    $("tab-equipe").hidden = !inApp || !isManager();
+    if (!inApp) {
+      ["view-appel", "view-annuaire", "view-prospects", "view-equipe"].forEach((id) => { $(id).hidden = true; });
+      renderGate(); return;
+    }
+    if (st.view === "equipe" && !isManager()) st.view = "appel";
+    for (const v of ["appel", "annuaire", "prospects", "equipe"]) {
+      $("view-" + v).hidden = st.view !== v;
+      $("tab-" + v).setAttribute("aria-selected", String(st.view === v));
+    }
     const mine = [...st.prospects.values()].filter((p) => p.name && !p.reservedOnly && p.assignedTo === st.meId && !["signe", "perdu", "mauvais_numero"].includes(p.status)).length;
     $("badge-mine").hidden = !mine; $("badge-mine").textContent = mine;
-    if (st.view === "appel") { watchCallNotes(); renderCall(); } else if (st.view === "annuaire") renderAnnuaire(); else renderProspects();
-    if (st.open) renderDrawer();
+    const pend = [...st.signups.keys()].filter((uid) => !st.roster.has(uid)).length;
+    $("badge-signups").hidden = !pend || !isManager(); $("badge-signups").textContent = pend;
+    if (st.view === "appel") { watchCallNotes(); renderCall(); }
+    else if (st.view === "annuaire") renderAnnuaire();
+    else if (st.view === "prospects") renderProspects();
+    else renderTeam();
+    const d = $("drawer");
+    const editing = document.activeElement && d.contains(document.activeElement) && document.activeElement.matches("input, textarea, select");
+    if (st.open) renderDrawer(); else if (st.memberOpen && !editing) renderMember();
   }
 
   // ------------------------------------------------------------------ Évènements
@@ -974,7 +1532,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
   const zoneCall = $("zone-appel");
   for (const [code, name] of DEPTS) zoneCall.append(h("option", { value: code }, `${code} · ${name}`));
   zoneCall.value = st.zone;
-  zoneCall.addEventListener("change", () => { st.zone = zoneCall.value; zoneSel.value = st.zone; persist(); releaseCurrent(); render(); });
+  zoneCall.addEventListener("change", () => { st.zone = zoneCall.value; zoneSel.value = st.zone; persist(); releaseAll(); st.skipped.clear(); render(); });
   let qt;
   $("q").addEventListener("input", (e) => { clearTimeout(qt); qt = setTimeout(() => { st.q = e.target.value.trim(); st.shown = STEP; render(); }, 200); });
   $("hide-taken").addEventListener("change", (e) => { st.hideTaken = e.target.checked; st.shown = STEP; render(); });
@@ -983,20 +1541,34 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
   $("tab-appel").addEventListener("click", () => { st.view = "appel"; location.hash = "appel"; render(); });
   $("tab-annuaire").addEventListener("click", () => { st.view = "annuaire"; location.hash = "annuaire"; render(); });
   $("tab-prospects").addEventListener("click", () => { st.view = "prospects"; location.hash = "prospects"; render(); });
+  $("tab-equipe").addEventListener("click", () => {
+    st.view = "equipe"; location.hash = "equipe"; render();
+    if (!st.teamLoadedAt || Date.now() - st.teamLoadedAt > 60000) loadTeam(true);
+  });
+  // Tableau de bord : actualisé chaque minute tant qu'il est affiché
+  setInterval(() => { if (st.view === "equipe" && document.visibilityState === "visible") loadTeam(true); }, 60000);
   if (location.hash === "#prospects") st.view = "prospects";
   if (location.hash === "#annuaire") st.view = "annuaire";
+  if (location.hash === "#equipe") st.view = "equipe";
 
   // ------------------------------------------------------------------ Démarrage
   async function loadData() {
     try {
-      const res = await fetch("annuaire.json");
+      const res = await fetch("annuaire.min.json");
       const data = await res.json();
       st.generatedAt = data.generatedAt;
-      st.companies = data.companies.map((c) => ({
+      // Format compact : une ligne de valeurs par entreprise, textes répétés rangés dans des dictionnaires
+      const rows = data.rows.map((r) => {
+        const o = {};
+        data.fields.forEach((f, i) => { const v = r[i] ?? null; o[f] = v !== null && data.dicts[f] ? data.dicts[f][v] : v; });
+        return o;
+      });
+      st.companies = rows.map((c) => ({
         ...c,
         sig: c.cible === "difficulte" ? (c.signal && c.signal.includes("BODACC") ? "procedure" : "pertes") : null,
         _hay: norm([c.name, c.activity, c.city, c.postalCode, c.dirigeant, c.siren].join(" ")),
       }));
+      for (const c of st.companies) if (!companyBySiren.has(c.siren)) companyBySiren.set(c.siren, c);
       $("banner").textContent = `Données officielles et publiques · SIRENE, comptes annuels et BODACC · instantané du ${new Date(data.generatedAt).toLocaleDateString("fr-FR")}`;
     } catch (e) {
       $("count").textContent = "Annuaire indisponible";
@@ -1011,17 +1583,60 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     if (user) {
       const me = await user.me();
       st.meId = me.id;
+      st.isOwner = me.isOwner;
       if (me.id) { $("me").hidden = false; $("me-avatar").src = me.avatarUrl; $("me-name").textContent = me.name || "Vous"; }
       const can = await user.can("data.write");
       if (can === false) st.canWrite = false;
     }
-    if (!db || !st.meId) { render(); return; }
+    if (!db || !st.meId) { st.connecting = false; render(); return; }
     st.db = db;
-    db.collection("prospects").limit(1000).onSnapshot(async (snap) => {
-      st.prospects = new Map(snap.docs.map((d) => [d.id, d.data()]));
+    const onErr = (e) => console.warn(e);
+    let first = 3;
+    const ready = () => { if (--first === 0) { st.connecting = false; afterAccess(); } render(); };
+    db.collection("roster").limit(500).onSnapshot(async (snap) => {
+      st.roster = new Map(snap.docs.map((d) => [d.id, d.data()]));
+      const was = st.role; computeRole();
+      if (first > 0) ready(); else { if (!was && st.role) afterAccess(); render(); }
+    }, onErr);
+    db.collection("signups").limit(500).onSnapshot((snap) => {
+      st.signups = new Map(snap.docs.map((d) => [d.id, d.data()]));
+      if (first > 0) ready(); else render();
+    }, onErr);
+    db.doc("config/objectifs").onSnapshot((snap) => {
+      st.config = snap.exists ? snap.data() : null;
+      if (first > 0) ready(); else render();
+    }, onErr);
+  }
+
+  let started = false;
+  /** Une fois l'accès validé : CRM, suivi d'activité, présence de l'équipe. */
+  async function afterAccess() {
+    computeRole();
+    if (!st.role || started) return;
+    started = true;
+    const db = st.db;
+    if (st.isOwner && !st.roster.has(st.meId)) {
+      const me = await st.user.me();
+      const [firstName, ...rest] = (me.name || "Admin").split(" ");
+      db.doc("roster/" + st.meId).set({ firstName, lastName: rest.join(" "), role: "admin", status: "active", createdAt: now() }).catch((e) => console.warn(e));
+    }
+    db.collection("prospects").orderBy("updatedAt", "desc").limit(1000).onSnapshot(async (snap) => {
+      // Les fiches modifiées localement (résultat d'appel en cours d'envoi) gardent leur version locale la plus récente.
+      const next = new Map(snap.docs.map((d) => [d.id, d.data()]));
+      for (const [k, v] of st.prospects) if (st.handled.has(k) && next.has(k) && (next.get(k).updatedAt || "") < (v.updatedAt || "")) next.set(k, v);
+      for (const k of [st.current, st.nextUp]) if (k && !next.has(k) && st.prospects.has(k)) next.set(k, st.prospects.get(k));
+      st.prospects = next;
       await resolve([...st.prospects.values()].map((p) => p.assignedTo));
       render();
-    }, (e) => { console.warn(e); });
+    }, (e) => console.warn(e));
+    loadActivity();
+    if (isManager()) {
+      db.collection("activity").limit(500).onSnapshot((snap) => {
+        st.presence = new Map(snap.docs.map((d) => [d.id, d.data()]));
+        if (st.view === "equipe") renderTeam();
+      }, (e) => console.warn(e));
+      resolve([...st.roster.keys()]);
+    }
     render();
   }
 

@@ -6,6 +6,7 @@
 //   --max=1000          nombre maximal d'appels payants (1 000 gratuits par mois chez Google)
 //   --depts=69,75,13    départements à traiter en priorité (les autres ensuite, dans la limite de --max)
 //   --cache=phones-cache.json   résultats déjà obtenus (jamais redemandés, donc jamais repayés)
+//   --from=ancien-annuaire.json  reprend les numéros d'un annuaire déjà enrichi (mise à jour de nuit)
 //
 // Le fichier d'annuaire est réécrit avec les champs phone, website et mapsUrl renseignés.
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -20,6 +21,7 @@ type Company = {
   phone?: string | null;
   website?: string | null;
   mapsUrl?: string | null;
+  phoneCheckedAt?: string | null;
 };
 type Hit = { phone: string | null; website: string | null; mapsUrl: string | null; checkedAt: string };
 
@@ -28,11 +30,12 @@ const args = Object.fromEntries(
 );
 const file = process.argv[2];
 const key = process.env.GOOGLE_MAPS_API_KEY;
-if (!file || !key) {
+if (!file) {
   console.error("Usage : GOOGLE_MAPS_API_KEY=... npx tsx scripts/enrich-phones.ts annuaire.json [--max=1000] [--depts=69,75]");
   process.exit(1);
 }
-const max = Number(args.max ?? 1000);
+if (!key) console.log("GOOGLE_MAPS_API_KEY absente : aucune nouvelle recherche, seuls les numéros déjà connus sont repris.");
+const max = key ? Number(args.max ?? 1000) : 0;
 const depts = (args.depts ?? "").split(",").filter(Boolean);
 const cacheFile = args.cache ?? "phones-cache.json";
 const cache: Record<string, Hit> = existsSync(cacheFile) ? JSON.parse(readFileSync(cacheFile, "utf8")) : {};
@@ -81,8 +84,27 @@ async function lookup(c: Company): Promise<Hit> {
   };
 }
 
+/** Lit un annuaire au format complet ({companies}) ou compact ({fields, dicts, rows}). */
+function readAnnuaire(path: string): Company[] {
+  const raw = JSON.parse(readFileSync(path, "utf8"));
+  if (raw.companies) return raw.companies;
+  return raw.rows.map((r: unknown[]) =>
+    Object.fromEntries(raw.fields.map((f: string, i: number) => {
+      const v = r[i] ?? null;
+      return [f, v !== null && raw.dicts[f] ? raw.dicts[f][v as number] : v];
+    })),
+  );
+}
+
 async function main() {
   const data = JSON.parse(readFileSync(file, "utf8")) as { companies: Company[] };
+  // Numéros déjà connus : dans l'annuaire lui-même ou dans un annuaire précédent (--from)
+  const known = [...data.companies, ...(args.from && existsSync(args.from) ? readAnnuaire(args.from) : [])];
+  for (const c of known) {
+    if (c.phoneCheckedAt && !cache[c.siren]) {
+      cache[c.siren] = { phone: c.phone ?? null, website: c.website ?? null, mapsUrl: c.mapsUrl ?? null, checkedAt: c.phoneCheckedAt };
+    }
+  }
   const rank = (c: Company) => (depts.length && c.department && depts.includes(c.department) ? 0 : 1);
   const todo = [...new Map(data.companies.map((c) => [c.siren, c])).values()]
     .filter((c) => !cache[c.siren])
@@ -110,7 +132,7 @@ async function main() {
 
   for (const c of data.companies) {
     const hit = cache[c.siren];
-    if (hit) Object.assign(c, { phone: hit.phone, website: hit.website, mapsUrl: hit.mapsUrl });
+    if (hit) Object.assign(c, { phone: hit.phone, website: hit.website, mapsUrl: hit.mapsUrl, phoneCheckedAt: hit.checkedAt });
   }
   writeFileSync(file, JSON.stringify(data));
   const withPhone = data.companies.filter((c) => c.phone).length;
