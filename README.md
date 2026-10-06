@@ -89,6 +89,14 @@ dans `phones-cache.json` : une même entreprise n'est jamais recherchée (ni pay
 On republie ensuite l'artefact avec ce fichier. Les prospects, les statuts et les notes sont stockés dans la base
 partagée de l'artefact, et ne sont pas affectés par une mise à jour de l'annuaire.
 
+### Présentation et connexion
+
+Le lien s'ouvre sur une **page de présentation** destinée aux futurs commerciaux : le principe de l'outil, une
+journée type, les cibles, les espaces par rôle et comment rejoindre l'équipe. Le bouton « Se connecter » mène
+aux **trois portes** (Commercial, Chef d'équipe, Admin). Seule la porte qui correspond au statut de la personne
+s'ouvre : un chef ou un admin peut aussi ouvrir l'espace commercial pour appeler. Sur un appareil où l'on s'est
+déjà connecté, le lien ouvre directement son espace.
+
 ### Rôles, inscription et suivi d'équipe
 
 - **Admin** : le propriétaire de l'artefact. Il valide les inscriptions, nomme les chefs, suspend un accès.

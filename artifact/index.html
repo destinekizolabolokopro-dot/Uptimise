@@ -57,7 +57,7 @@ button { font: inherit; cursor: pointer; color: inherit; }
 .banner { background: var(--brand); color: var(--brand-ink); font-size: 14px; letter-spacing: .04em; text-align: center; padding: 11px 16px; }
 .wrap { max-width: 1240px; margin: 0 auto; padding-inline: clamp(16px, 4vw, 48px); }
 .site-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px 32px; padding-block: 24px; border-bottom: 1px solid var(--line); }
-.logo { font-size: 15px; font-weight: 500; letter-spacing: .32em; text-transform: uppercase; }
+.logo { background: none; border: 0; padding: 0; cursor: pointer; font-size: 15px; font-weight: 500; letter-spacing: .32em; text-transform: uppercase; }
 .nav { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 22px; font-size: 15px; letter-spacing: .04em; }
 .tab { background: none; border: 0; padding: 6px 0; color: var(--muted); letter-spacing: .04em; }
 .tab:hover { color: var(--brand); }
@@ -222,6 +222,55 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
 .history { font-size: 14px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
 .skip { align-self: flex-start; }
 
+/* Accueil (vitrine) */
+.land-hero { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 40px 56px; align-items: center; padding-block: 72px 56px; }
+@media (max-width: 900px) { .land-hero { grid-template-columns: 1fr; } }
+.land-hero h1 { font-size: clamp(46px, 7.5vw, 100px); }
+.cta-row { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; }
+.btn.big { min-height: 58px; padding: 0 30px; font-size: 15px; }
+.demo { position: relative; transform: rotate(-1.2deg); }
+.demo .call-card { box-shadow: 0 40px 80px -40px var(--shadow); pointer-events: none; }
+.demo .call-card h2 { font-size: clamp(26px, 3vw, 36px); }
+.demo-tag { position: absolute; top: -12px; right: 18px; z-index: 1; background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn-line); font-size: 12px; letter-spacing: .06em; padding: 3px 10px; border-radius: 999px; }
+.figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); border-block: 1px solid var(--line); }
+.figure { padding: 26px 20px 24px 0; display: flex; flex-direction: column; gap: 4px; }
+.figure b { font-weight: 300; font-size: clamp(34px, 4.5vw, 52px); line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.figure span { font-size: 15px; color: var(--muted); }
+.land-section { padding-block: 88px 0; display: flex; flex-direction: column; gap: 32px; }
+.land-section > header { display: flex; flex-direction: column; gap: 16px; max-width: 760px; }
+.land-section h2 { font-size: clamp(34px, 5vw, 60px); line-height: 1.02; letter-spacing: -.03em; text-wrap: balance; }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 0; counter-reset: step; }
+.steps li { counter-increment: step; padding: 26px 28px 28px 0; border-top: 2px solid var(--ink); display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.steps li::before { content: counter(step, decimal-leading-zero); font-family: var(--font-display); font-style: italic; font-size: 44px; line-height: 1; color: var(--brand); }
+.steps h3 { font-size: 24px; }
+.steps p { margin: 0; color: var(--muted); font-size: 16px; text-wrap: pretty; }
+.targets { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 14px; }
+.target { padding: 22px 24px; border: 1px solid var(--line); border-radius: 18px; display: flex; flex-direction: column; gap: 8px; }
+.target .count { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.target p { margin: 0; font-size: 16px; }
+.roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 16px; }
+.role-card { background: var(--panel); border-radius: 22px; padding: 28px; display: flex; flex-direction: column; gap: 14px; }
+.role-card h3 { font-size: 28px; }
+.role-card ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 16px; }
+.cta-band { margin-top: 96px; background: var(--brand); color: var(--brand-ink); border-radius: 28px; padding: clamp(28px, 5vw, 56px); display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 24px; }
+.cta-band h2 { font-size: clamp(32px, 4.5vw, 54px); color: var(--brand-ink); }
+.cta-band .serif { color: var(--brand-ink); }
+.btn.inverse { background: var(--brand-ink); color: var(--brand); }
+
+/* Connexion : les trois portes */
+.doors-wrap { padding-block: 64px 8px; display: flex; flex-direction: column; gap: 28px; }
+.doors-wrap h1 { font-size: clamp(40px, 6vw, 72px); }
+.doors { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 16px; }
+.door { text-align: left; background: var(--card); border: 1px solid var(--line-strong); border-radius: 22px; padding: 26px; display: flex; flex-direction: column; gap: 12px; min-height: 230px; transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease; }
+.door:hover { transform: translateY(-3px); border-color: var(--brand); box-shadow: 0 24px 48px -30px var(--shadow); }
+.door h2 { font-size: 30px; }
+.door p { margin: 0; color: var(--muted); font-size: 16px; }
+.door .state { margin-top: auto; }
+.door[aria-current="true"] { border-color: var(--brand); border-width: 2px; }
+.who-line { font-size: 15px; color: var(--muted); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.space-tag { font-size: 12px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: var(--brand); border: 1px solid var(--brand); border-radius: 999px; padding: 3px 10px; }
+@media (prefers-reduced-motion: reduce) { .door { transition: none; } .door:hover { transform: none; } .demo { transform: none; } }
+
 /* Accès : inscription et attente */
 .gate { max-width: 560px; margin: 0 auto; padding-block: 64px 24px; display: flex; flex-direction: column; gap: 22px; }
 .gate h1 { font-size: clamp(40px, 6vw, 64px); }
@@ -278,19 +327,25 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
 
 <div class="wrap">
   <header class="site-header">
-    <div class="logo">[Uptimise]</div>
+    <button class="logo linklike" type="button" id="logo" style="color:var(--ink);font-size:15px;letter-spacing:.32em">[Uptimise]</button>
     <nav class="nav" role="tablist" aria-label="Sections" id="nav">
       <button class="tab" role="tab" id="tab-appel" aria-selected="true">Appeler</button>
       <button class="tab" role="tab" id="tab-annuaire" aria-selected="false">Annuaire</button>
       <button class="tab" role="tab" id="tab-prospects" aria-selected="false">Prospects<span class="badge" id="badge-mine" hidden></span></button>
       <button class="tab" role="tab" id="tab-equipe" aria-selected="false" hidden>Équipe<span class="badge" id="badge-signups" hidden></span></button>
+      <span class="space-tag" id="space-tag" hidden></span>
       <span class="me" id="me" hidden><img alt="" id="me-avatar"><span id="me-name"></span></span>
+      <button class="tab" type="button" id="btn-switch" hidden>Changer d’espace</button>
+      <button class="btn" type="button" id="btn-login" style="min-height:42px;padding:0 18px;font-size:13px">Se connecter</button>
     </nav>
   </header>
 </div>
 
 <main class="wrap">
+  <section id="view-accueil" hidden></section>
+
   <section id="view-gate" hidden>
+    <div class="doors-wrap" id="doors"></div>
     <div class="gate" id="gate"></div>
   </section>
 
@@ -421,6 +476,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     current: null, nextUp: null, reserving: false, prefetching: false, shownAt: 0, skipped: new Set(), handled: new Set(), rappel: false, autoStart: true,
     role: null, isOwner: false, roster: new Map(), signups: new Map(), presence: new Map(), config: null, act: null,
     period: "jour", teamDays: null, memberOpen: null, connecting: true,
+    screen: "accueil", space: null, gateDoor: null, doorMsg: null,
     prospects: new Map(), // siren -> doc data
     db: null, user: null, meId: null, canWrite: true,
     open: null, notesUnsub: null, notes: [], profiles: {},
@@ -1123,7 +1179,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
 
   function renderSignupForm(prev) {
     const g = $("gate");
-    let wanted = (prev && prev.role) || "commercial";
+    let wanted = (prev && prev.role) || (st.gateDoor === "chef" ? "chef" : "commercial");
     const err = h("div", { class: "alert", role: "alert", hidden: true });
     const roleBtns = h("div", { class: "seg", role: "group", "aria-label": "Rôle" });
     const drawRoles = () => roleBtns.replaceChildren(...[["commercial", "Commercial"], ["chef", "Chef d’équipe"]].map(([k, l]) =>
@@ -1210,7 +1266,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     if (!st.act) return;
     const t = Date.now();
     if (st.act.date !== today()) { flushActivity(true); st.act = { date: today(), activeSec: 0, firstSeen: now(), lastSeen: now(), calls: [] }; }
-    const active = document.visibilityState === "visible" && t - lastInput < 3 * 60 * 1000;
+    const active = st.screen === "app" && document.visibilityState === "visible" && t - lastInput < 3 * 60 * 1000;
     if (active) { st.act.activeSec += Math.min(60, (t - lastTick) / 1000); st.act.lastSeen = now(); dirty = true; }
     lastTick = t;
   }
@@ -1495,18 +1551,185 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
           : h("button", { class: "btn ghost", type: "button", onclick: () => updateMember(uid, { status: "disabled" }) }, "Suspendre l’accès")) : null);
   }
 
+  // ------------------------------------------------------------------ Accueil (vitrine) et choix de l'espace
+  const SPACES = {
+    commercial: { label: "Commercial", title: "Espace commercial", desc: "Ta file d’appels, l’annuaire et tes prospects. Tu appelles, un clic sur le résultat, la fiche suivante arrive." },
+    chef: { label: "Chef d’équipe", title: "Espace chef d’équipe", desc: "Le tableau de bord de ton équipe : temps en ligne, appels, RDV, objectifs et alertes. Tu valides les inscriptions." },
+    admin: { label: "Admin", title: "Espace admin", desc: "Tout l’espace chef, plus les rôles de chacun, la suspension d’un accès et les réglages de l’outil." },
+  };
+  /** Un rôle ouvre sa porte et celles en dessous (l'admin peut aussi appeler, le chef aussi). */
+  const canOpen = (role, door) => role === "admin" || (role === "chef" && door !== "admin") || (role === "commercial" && door === "commercial");
+  const savedSpace = (() => { try { return localStorage.getItem("uptimise-espace"); } catch (e) { return null; } })();
+
+  function enterSpace(door) {
+    st.space = door; st.screen = "app"; st.gateDoor = null;
+    try { localStorage.setItem("uptimise-espace", door); } catch (e) {}
+    st.view = door === "commercial" ? "appel" : "equipe";
+    if (door !== "commercial" && (!st.teamLoadedAt || Date.now() - st.teamLoadedAt > 60000)) loadTeam(true);
+    location.hash = st.view;
+    render();
+  }
+  function leaveSpace(to) {
+    releaseAll(); flushActivity(true);
+    st.screen = to; st.space = null;
+    try { localStorage.removeItem("uptimise-espace"); } catch (e) {}
+    location.hash = to === "accueil" ? "" : "connexion";
+    render(); scrollTo(0, 0);
+  }
+
+  function openDoor(door) {
+    st.doorMsg = null;
+    if (!st.db || !st.meId) { st.doorMsg = "Ouvre cette page en étant connecté à ton compte claude.ai : il sert d’identifiant, sans mot de passe."; render(); return; }
+    if (st.role) {
+      if (canOpen(st.role, door)) { enterSpace(door); return; }
+      st.doorMsg = `Ton statut est « ${SPACES[st.role].label} » : cet espace ne t’est pas ouvert.`; render(); return;
+    }
+    if (door === "admin") { st.doorMsg = "Cet espace est réservé à l’administrateur de l’outil."; render(); return; }
+    st.gateDoor = door; render();
+    setTimeout(() => { const g = $("gate"); if (g && g.scrollIntoView) g.scrollIntoView({ behavior: "smooth", block: "start" }); }, 50);
+  }
+
+  function renderDoors() {
+    const el = $("doors");
+    const meName = $("me-name").textContent;
+    const state = (door) => {
+      if (st.connecting) return h("span", { class: "pill" }, "Vérification…");
+      if (!st.meId) return h("span", { class: "pill" }, "Connexion claude.ai requise");
+      if (st.role) return canOpen(st.role, door) ? h("span", { class: "pill good" }, "✓ Accès ouvert") : h("span", { class: "pill" }, "Non accessible");
+      const m = st.roster.get(st.meId), sign = st.signups.get(st.meId);
+      if (m && m.status === "refused") return h("span", { class: "pill bad" }, "⚠ Inscription refusée");
+      if (m && m.status === "disabled") return h("span", { class: "pill bad" }, "⚠ Accès suspendu");
+      if (door === "admin") return h("span", { class: "pill" }, "Réservé");
+      if (sign) return h("span", { class: "pill warn" }, sign.role === door ? "◔ En attente de validation" : "Inscription en cours");
+      return h("span", { class: "pill" }, "Inscription nécessaire");
+    };
+    el.replaceChildren(...[
+      h("div", { class: "eyebrow" }, "Connexion"),
+      h("h1", {}, "Choisis ", h("span", { class: "serif", style: "display:inline" }, "ton espace.")),
+      st.meId ? h("div", { class: "who-line" }, $("me-avatar").src ? h("img", { class: "avatar", src: $("me-avatar").src, alt: "" }) : null,
+        `Connecté avec le compte claude.ai de ${meName || "cet utilisateur"}`, st.role ? h("span", { class: "space-tag" }, "Statut : " + SPACES[st.role].label) : null) : null,
+      h("div", { class: "doors" }, Object.entries(SPACES).map(([k, sp]) => h("button", {
+        class: "door", type: "button", "aria-current": String(st.gateDoor === k), onclick: () => openDoor(k),
+      }, h("div", { class: "cat" }, sp.label), h("h2", {}, sp.title), h("p", {}, sp.desc), h("div", { class: "state" }, state(k))))),
+      st.doorMsg ? h("div", { class: "alert", role: "alert" }, st.doorMsg) : null,
+      h("button", { class: "link", type: "button", style: "align-self:flex-start", onclick: () => leaveSpace("accueil") }, "← Retour à la présentation")].filter(Boolean));
+  }
+
+  function renderAccueil() {
+    const el = $("view-accueil");
+    if (el.dataset.ready === String(st.companies.length)) return; // contenu statique : rendu une seule fois par jeu de données
+    el.dataset.ready = String(st.companies.length);
+    const n = st.companies.length;
+    const counts = {};
+    for (const c of st.companies) counts[c.cible] = (counts[c.cible] || 0) + 1;
+    const depts = new Set(st.companies.map((c) => c.department)).size;
+    // Exemple de fiche : une vraie entreprise de l'annuaire, avec dirigeant et signal
+    const ex = st.companies.find((c) => c.cible === "difficulte" && c.dirigeant && c.signal && c.city && c.name.length < 32) || st.companies[0];
+    const demo = ex ? h("div", { class: "demo", "aria-hidden": "true" },
+      h("span", { class: "demo-tag" }, "Aperçu de l’écran d’appel"),
+      h("article", { class: "call-card" },
+        h("div", { class: "fiche-top" }, h("span", { class: "cat" }, cibleLabel(ex.cible)), h("span", { class: "tag" }, "Premier appel")),
+        h("h2", {}, ex.name),
+        h("div", { class: "meta" }, [ex.activity, [ex.postalCode, ex.city].filter(Boolean).join(" ")].filter(Boolean).join(" · ")),
+        h("div", { class: "appel big-call" }, h("span", { class: "num" }, ICON.phone(), h("span", {}, "04 ·· ·· ·· ··")), h("span", { class: "cta" }, "Appeler")),
+        ex.dirigeant ? h("div", { class: "ask" }, ICON.user(), h("div", {}, h("small", {}, "Demandez"), ex.dirigeant)) : null,
+        h("div", { class: "signal" }, ex.signal || ""),
+        h("p", { class: "say" }, ex.pitch || ""))) : null;
+
+    const TARGET_TEXT = {
+      difficulte: "Pertes ou procédure collective : chaque charge renégociée compte, la porte est souvent ouverte.",
+      grandes: "Plusieurs sites et contrats dispersés : on vise un seul poste pour décrocher le rendez-vous.",
+      pme: "Souvent sans service achats : le dirigeant négocie seul ses contrats.",
+      tpe: "Commerces et artisans indépendants, hors franchises : décision rapide, en un rendez-vous.",
+      energie: "Boulangeries, restaurants, froid, industrie : l’énergie est leur premier poste de charges.",
+      nouvelles: "Sociétés créées depuis moins de 6 mois : tous leurs contrats sont à signer maintenant.",
+    };
+
+    el.replaceChildren(
+      h("section", { class: "land-hero" },
+        h("div", { style: "display:flex;flex-direction:column;gap:28px;min-width:0" },
+          h("div", { class: "eyebrow" }, "Uptimise · Prospection téléphonique"),
+          h("h1", {}, h("span", {}, "Tu appelles."), h("span", {}, "Le reste est"), h("span", { class: "serif" }, "déjà fait.")),
+          h("p", { class: "lede", style: "flex:none;max-width:520px" }, "Les entreprises à appeler sont trouvées, triées et prêtes, avec le numéro, le nom du dirigeant et la phrase d’accroche. Ton seul travail : décrocher et convaincre."),
+          h("div", { class: "cta-row" },
+            h("button", { class: "btn big", type: "button", onclick: () => { st.screen = "connexion"; location.hash = "connexion"; render(); scrollTo(0, 0); } }, "Se connecter"),
+            h("a", { class: "link", href: "#comment" , onclick: (e) => { e.preventDefault(); $("comment").scrollIntoView({ behavior: "smooth" }); } }, "Voir comment ça marche"))),
+        demo),
+      h("div", { class: "figures" },
+        h("div", { class: "figure" }, h("b", {}, fmtN(n)), h("span", {}, "entreprises prêtes à appeler")),
+        h("div", { class: "figure" }, h("b", {}, fmtN(depts)), h("span", {}, "départements couverts")),
+        h("div", { class: "figure" }, h("b", {}, "6"), h("span", {}, "cibles de prospection")),
+        h("div", { class: "figure" }, h("b", {}, "1 clic"), h("span", {}, "pour passer à l’appel suivant"))),
+
+      h("section", { class: "land-section", id: "comment" },
+        h("header", {}, h("div", { class: "eyebrow" }, "Une journée type"), h("h2", {}, "Trois gestes, ", h("span", { class: "serif" }, "et ça s’enchaîne."))),
+        h("ol", { class: "steps" },
+          h("li", {}, h("h3", {}, "Choisis ta zone"), h("p", {}, "Ton département et tes cibles. La file d’appels se remplit toute seule, les rappels prévus passent en premier.")),
+          h("li", {}, h("h3", {}, "Appelle"), h("p", {}, "Le numéro en grand, le nom de la personne à demander et l’accroche à dire. Rien à chercher, rien à préparer.")),
+          h("li", {}, h("h3", {}, "Un clic sur le résultat"), h("p", {}, "Pas de réponse, rappeler, RDV pris… L’entreprise suivante s’affiche aussitôt, les relances reviennent seules au bon jour.")))),
+
+      h("section", { class: "land-section" },
+        h("header", {}, h("div", { class: "eyebrow" }, "Les cibles"), h("h2", {}, "Des entreprises ", h("span", { class: "serif" }, "qui ont une raison d’écouter."))),
+        h("div", { class: "targets" }, CIBLES.map(([k, l]) => h("div", { class: "target" },
+          h("div", { class: "cat" }, l), h("p", {}, TARGET_TEXT[k]), h("span", { class: "count" }, `${fmtN(counts[k] || 0)} entreprises dans l’annuaire`))))),
+
+      h("section", { class: "land-section" },
+        h("header", {}, h("div", { class: "eyebrow" }, "Un espace par rôle"), h("h2", {}, "Chacun voit ", h("span", { class: "serif" }, "ce qui le concerne."))),
+        h("div", { class: "roles" },
+          h("div", { class: "role-card" }, h("div", { class: "cat" }, "Commercial"), h("h3", {}, "Appeler, sans friction"),
+            h("ul", {}, h("li", {}, "File d’appels partagée, sans doublon avec les collègues"), h("li", {}, "Rappels et relances automatiques"), h("li", {}, "Tes chiffres du jour et ton objectif"))),
+          h("div", { class: "role-card" }, h("div", { class: "cat" }, "Chef d’équipe"), h("h3", {}, "Piloter l’équipe"),
+            h("ul", {}, h("li", {}, "Temps en ligne, appels, RDV par commercial"), h("li", {}, "Objectifs et alertes d’inactivité ou de retard"), h("li", {}, "Validation des nouvelles inscriptions"))),
+          h("div", { class: "role-card" }, h("div", { class: "cat" }, "Admin"), h("h3", {}, "Gérer l’outil"),
+            h("ul", {}, h("li", {}, "Nomme les chefs d’équipe"), h("li", {}, "Suspend ou réactive un accès"), h("li", {}, "Voit toute l’activité"))))),
+
+      h("section", { class: "land-section" },
+        h("header", {}, h("div", { class: "eyebrow" }, "Rejoindre l’équipe"), h("h2", {}, "Inscrit en ", h("span", { class: "serif" }, "une minute."))),
+        h("ol", { class: "steps" },
+          h("li", {}, h("h3", {}, "Connecte-toi"), h("p", {}, "Ouvre ce lien avec ton compte claude.ai : il sert d’identifiant, sans mot de passe à retenir.")),
+          h("li", {}, h("h3", {}, "Choisis « Commercial »"), h("p", {}, "Prénom, nom, téléphone. Ton inscription part chez ton chef d’équipe.")),
+          h("li", {}, h("h3", {}, "Ton chef valide"), h("p", {}, "La page s’ouvre toute seule sur ta file d’appels. Tu peux commencer.")))),
+
+      h("div", { class: "cta-band" },
+        h("h2", {}, "Prêt à ", h("span", { class: "serif" }, "décrocher ?")),
+        h("button", { class: "btn big inverse", type: "button", onclick: () => { st.screen = "connexion"; location.hash = "connexion"; render(); scrollTo(0, 0); } }, "Se connecter")));
+  }
+
   // ------------------------------------------------------------------ Rendu général
   function render() {
     computeRole();
-    const inApp = !!st.role;
-    $("view-gate").hidden = inApp;
+    // Un espace n'est ouvert que si le statut le permet encore (rôle changé ou accès suspendu entre-temps)
+    let screen = st.screen;
+    if (screen === "app" && !(st.role && st.space && canOpen(st.role, st.space))) {
+      if (st.connecting) screen = "connexion"; // vérification du statut en cours : on attend sans changer d'écran
+      else if (st.role && !st.space && savedSpace && canOpen(st.role, savedSpace) && !st.leftOnce) {
+        st.space = savedSpace;
+        if (!["#appel", "#annuaire", "#prospects", "#equipe"].includes(location.hash)) st.view = savedSpace === "commercial" ? "appel" : "equipe";
+      } else { st.screen = "connexion"; screen = "connexion"; }
+    }
+    const inApp = screen === "app";
+    const managerSpace = st.space === "chef" || st.space === "admin";
+    $("view-accueil").hidden = screen !== "accueil";
+    $("view-gate").hidden = screen !== "connexion";
     $("nav").querySelectorAll(".tab").forEach((t) => { t.hidden = !inApp; });
-    $("tab-equipe").hidden = !inApp || !isManager();
+    $("tab-equipe").hidden = !inApp || !managerSpace;
+    $("btn-switch").hidden = !inApp;
+    $("btn-login").hidden = screen !== "accueil";
+    $("btn-login").textContent = st.role && savedSpace ? "Mon espace" : "Se connecter";
+    $("space-tag").hidden = !inApp;
+    if (inApp) $("space-tag").textContent = SPACES[st.space].label;
     if (!inApp) {
       ["view-appel", "view-annuaire", "view-prospects", "view-equipe"].forEach((id) => { $(id).hidden = true; });
-      renderGate(); return;
+      if (screen === "accueil") renderAccueil();
+      else {
+        renderDoors();
+        const showGate = !st.role && st.gateDoor && st.meId && st.db;
+        $("gate").hidden = !showGate;
+        if (showGate) renderGate();
+      }
+      return;
     }
-    if (st.view === "equipe" && !isManager()) st.view = "appel";
+    if (st.view === "equipe" && !managerSpace) st.view = "appel";
     for (const v of ["appel", "annuaire", "prospects", "equipe"]) {
       $("view-" + v).hidden = st.view !== v;
       $("tab-" + v).setAttribute("aria-selected", String(st.view === v));
@@ -1547,6 +1770,15 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
   });
   // Tableau de bord : actualisé chaque minute tant qu'il est affiché
   setInterval(() => { if (st.view === "equipe" && document.visibilityState === "visible") loadTeam(true); }, 60000);
+  $("btn-login").addEventListener("click", () => {
+    if (st.role && savedSpace && canOpen(st.role, savedSpace)) { enterSpace(savedSpace); return; }
+    st.screen = "connexion"; location.hash = "connexion"; render(); scrollTo(0, 0);
+  });
+  $("btn-switch").addEventListener("click", () => { st.leftOnce = true; leaveSpace("connexion"); });
+  $("logo").addEventListener("click", () => { if (st.screen === "app") { st.leftOnce = true; leaveSpace("accueil"); } else { st.screen = "accueil"; location.hash = ""; render(); scrollTo(0, 0); } });
+  // Retour direct dans son espace pour qui s'est déjà connecté sur cet appareil (gain de temps)
+  if (savedSpace && SPACES[savedSpace] && location.hash !== "#accueil") st.screen = "app";
+  if (location.hash === "#connexion") st.screen = "connexion";
   if (location.hash === "#prospects") st.view = "prospects";
   if (location.hash === "#annuaire") st.view = "annuaire";
   if (location.hash === "#equipe") st.view = "equipe";
@@ -1596,7 +1828,15 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     db.collection("roster").limit(500).onSnapshot(async (snap) => {
       st.roster = new Map(snap.docs.map((d) => [d.id, d.data()]));
       const was = st.role; computeRole();
-      if (first > 0) ready(); else { if (!was && st.role) afterAccess(); render(); }
+      if (first > 0) ready();
+      else {
+        if (!was && st.role) {
+          afterAccess();
+          // Inscription validée pendant que la personne attendait : son espace s'ouvre tout seul
+          if (st.gateDoor && canOpen(st.role, st.gateDoor)) { enterSpace(st.gateDoor); return; }
+        }
+        render();
+      }
     }, onErr);
     db.collection("signups").limit(500).onSnapshot((snap) => {
       st.signups = new Map(snap.docs.map((d) => [d.id, d.data()]));
@@ -1642,6 +1882,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
 
   render();
   loadData();
-  if (window.claude && claude.use) connect().catch((e) => { console.warn(e); render(); });
+  if (window.claude && claude.use) connect().catch((e) => { console.warn(e); st.connecting = false; render(); });
+  else { st.connecting = false; render(); }
 })();
 </script>
