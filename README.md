@@ -114,3 +114,17 @@ valider lui-même ni lire l'activité de ses collègues.
 Chaque nuit, une tâche programmée recharge l'annuaire (SIRENE, BODACC), reprend les numéros déjà trouvés, en
 cherche de nouveaux sur Google Maps si `GOOGLE_MAPS_API_KEY` est définie (33 par nuit, soit environ 1 000 par
 mois, la part gratuite), compacte le fichier (`scripts/pack-annuaire.ts`) et republie l'artefact.
+
+## Version publique sur GitHub Pages
+
+Le dossier `docs/` contient la version publique du site : la présentation et l'annuaire, sans connexion ni base
+partagée. Elle est générée à partir du même fichier que l'artefact (`artifact/index.html`, en mode public) :
+
+```bash
+npx tsx scripts/build-pages.ts annuaire.min.json
+```
+
+Mise en ligne (une seule fois) : sur GitHub, ouvre **Settings → Pages**. Dans « Build and deployment », choisis
+**Deploy from a branch**, la branche `claude/business-prospecting-site-3p55r9` et le dossier `/docs`, puis
+**Save**. Le site est publié à l'adresse https://destinekizolabolokopro-dot.github.io/Uptimise/ et la mise à jour
+de nuit y pousse chaque jour le nouvel annuaire.
