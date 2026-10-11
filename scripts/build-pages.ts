@@ -28,6 +28,18 @@ ${page}
 
 mkdirSync("docs", { recursive: true });
 writeFileSync("docs/index.html", html);
-copyFileSync(data, "docs/annuaire.min.json");
+// Version publique : sans les numéros ni les liens issus de Google Maps (site ouvert à tous, données
+// personnelles des entrepreneurs individuels, conditions de Google). Ajouter --avec-telephones pour les garder.
+if (process.argv.includes("--avec-telephones")) {
+  copyFileSync(data, "docs/annuaire.min.json");
+} else {
+  const raw = JSON.parse(readFileSync(data, "utf8"));
+  const hidden = ["phone", "website", "mapsUrl", "phoneCheckedAt"].map((f) => raw.fields.indexOf(f)).filter((i) => i >= 0);
+  for (const r of raw.rows) {
+    for (const i of hidden) if (i < r.length) r[i] = null;
+    while (r.length && r[r.length - 1] === null) r.pop();
+  }
+  writeFileSync("docs/annuaire.min.json", JSON.stringify(raw));
+}
 writeFileSync("docs/.nojekyll", "");
 console.log("docs/ prêt : index.html, annuaire.min.json");
