@@ -319,6 +319,15 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
 .log li { display: flex; gap: 10px; justify-content: space-between; border-bottom: 1px solid var(--line); padding-block: 6px; }
 .log li:last-child { border-bottom: 0; }
 
+/* Groupes */
+.groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 14px; }
+.group { border: 1px solid var(--line); border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.group h4 { margin: 0; font-size: 20px; font-weight: 400; }
+.group .acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
+.group-form { border: 1px dashed var(--chip-line); border-radius: 18px; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.scope { font-size: 15px; color: var(--muted); }
+.scope b { color: var(--ink); font-weight: 500; }
+
 @media (prefers-reduced-motion: reduce) { .pending-dot { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .fiche, .appel { transition: none; } .fiche:hover { transform: none; } }
 </style>
@@ -366,12 +375,13 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
         <div class="eyebrow">Mode appel</div>
         <h1>Une entreprise, <span class="serif" style="display:inline">un appel.</span></h1>
       </div>
-      <div class="call-filters">
+      <div class="call-filters" id="call-filters">
         <label class="label" for="zone-appel" style="margin-right:4px">Zone</label>
         <select id="zone-appel" class="input"><option value="">Toute la France</option></select>
         <div class="chips" id="cibles-appel" role="group" aria-label="Cibles"></div>
       </div>
     </div>
+    <div class="scope" id="call-scope" hidden></div>
     <div class="kpis" id="kpis"></div>
     <div id="call"></div>
   </section>
@@ -476,7 +486,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     current: null, nextUp: null, reserving: false, prefetching: false, shownAt: 0, skipped: new Set(), handled: new Set(), rappel: false, autoStart: true,
     role: null, isOwner: false, roster: new Map(), signups: new Map(), presence: new Map(), config: null, act: null,
     period: "jour", teamDays: null, memberOpen: null, connecting: true,
-    screen: "accueil", space: null, gateDoor: null, doorMsg: null,
+    screen: "accueil", space: null, gateDoor: null, doorMsg: null, groups: new Map(), noteOpen: false, groupEdit: null,
     prospects: new Map(), // siren -> doc data
     db: null, user: null, meId: null, canWrite: true,
     open: null, notesUnsub: null, notes: [], profiles: {},
@@ -864,14 +874,34 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
   const lockedByOther = (p) => p && p.lockedBy && p.lockedBy !== st.meId && p.lockedUntil && Date.parse(p.lockedUntil) > Date.now();
   const companyBySiren = new Map();
 
+  // ------------------------------------------------------------------ Groupes
+  // Un groupe (créé par l'admin) réunit des commerciaux sous un manager, avec sa zone et ses cibles.
+  // Un commercial d'un groupe n'a rien à régler : sa file d'appels suit la zone et les cibles du groupe.
+  const groupOf = (uid) => { const m = st.roster.get(uid); return m && m.groupId ? st.groups.get(m.groupId) : null; };
+  function callScope() {
+    const g = st.space === "commercial" ? groupOf(st.meId) : null;
+    if (g && ((g.departements || []).length || (g.cibles || []).length)) return { zones: g.departements || [], cibles: g.cibles || [], group: g };
+    return { zones: st.zone ? [st.zone] : [], cibles: st.cibles, group: null };
+  }
+  /** Commerciaux visibles dans le tableau de bord : tous pour l'admin, ceux de ses groupes pour un manager. */
+  function visibleMembers() {
+    const all = [...st.roster.entries()].filter(([, m]) => m.status === "active" || m.status === "disabled");
+    if (st.role === "admin") return all;
+    const mine = new Set([...st.groups.entries()].filter(([, g]) => g.managerId === st.meId).map(([id]) => id));
+    if (!mine.size) return all; // manager sans groupe : il voit toute l'équipe
+    return all.filter(([uid, m]) => uid === st.meId || mine.has(m.groupId));
+  }
+  const managedGroups = () => [...st.groups.entries()].filter(([, g]) => st.role === "admin" || g.managerId === st.meId);
+
   /** File d'appels : rappels arrivés à échéance d'abord, puis entreprises jamais appelées. */
   function queue() {
     const t = today();
     const due = [], fresh = [], seen = new Set();
+    const scope = callScope();
     for (const c of st.companies) {
       if (seen.has(c.siren)) continue; seen.add(c.siren);
-      if (st.zone && c.department !== st.zone) continue;
-      if (st.cibles.length && !st.cibles.includes(c.cible)) continue;
+      if (scope.zones.length && !scope.zones.includes(c.department)) continue;
+      if (scope.cibles.length && !scope.cibles.includes(c.cible)) continue;
       if (c.cible === "difficulte" && st.signaux.length && !st.signaux.includes(c.sig)) continue;
       if (c.siren === st.current || c.siren === st.nextUp) continue;
       const p = st.prospects.get(c.siren);
@@ -930,7 +960,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
 
   async function nextCompany() {
     if (!st.db || st.reserving) return;
-    st.rappel = false; st.draftNote = "";
+    st.rappel = false; st.draftNote = ""; st.noteOpen = false;
     if (st.nextUp) {
       st.current = st.nextUp; st.nextUp = null; st.shownAt = Date.now();
       render(); prefetch(); return;
@@ -1000,6 +1030,12 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     const hh = Math.floor(sec / 3600), mm = Math.floor((sec % 3600) / 60);
     return hh ? `${hh} h ${String(mm).padStart(2, "0")}` : `${mm} min`;
   };
+  /** Personne à demander au téléphone : jamais une société (le registre indique parfois une holding comme dirigeant). */
+  const askable = (d) => {
+    if (!d) return null;
+    const clean = d.replace(/^(Président|Gérant|Directeur général|Président de SAS)\s*:\s*/i, "").replace(/\s*nom d['’ ]?usage\s*:.*$/i, "");
+    return /(^|\s)(sté|soci[ée]t[ée]|sas|sarl|sasu|eurl|holding|sci|sa)(\s|$)/iu.test(clean.split(" · ")[0]) ? null : clean;
+  };
   const fmtClock = (sec) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, "0")}`;
 
   function renderCallKpis() {
@@ -1009,18 +1045,28 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     const rdv = a ? a.calls.filter((c) => c.r === "rdv").length : 0;
     const goal = myGoal();
     const pct = goal ? Math.min(100, Math.round((calls / goal) * 100)) : 0;
+    const simple = st.space === "commercial";
     $("kpis").replaceChildren(...[
       h("span", {}, h("b", {}, fmtN(calls)), "appels aujourd’hui"),
       h("span", {}, h("b", {}, fmtN(rdv)), "RDV"),
-      h("span", {}, h("b", {}, a ? fmtDur(a.activeSec) : "—"), "en ligne"),
-      h("span", {}, h("b", {}, fmtN(q.due)), "rappels prévus"),
-      h("span", {}, h("b", {}, fmtN(q.fresh + (st.nextUp ? 1 : 0))), "dans la file"),
+      simple ? null : h("span", {}, h("b", {}, a ? fmtDur(a.activeSec) : "—"), "en ligne"),
+      simple ? null : h("span", {}, h("b", {}, fmtN(q.due)), "rappels prévus"),
+      simple ? null : h("span", {}, h("b", {}, fmtN(q.fresh + (st.nextUp ? 1 : 0))), "dans la file"),
       goal ? h("div", { class: "goal" },
         h("span", { class: "hint" }, `Objectif du jour : ${calls} / ${goal} appels`),
         h("div", { class: "bar" + (calls >= goal ? " done" : ""), role: "progressbar", "aria-valuenow": String(pct), "aria-valuemin": "0", "aria-valuemax": "100", "aria-label": "Objectif d’appels du jour" }, h("span", { style: `width:${pct}%` }))) : null].filter(Boolean));
   }
 
   function renderCall() {
+    // Espace commercial : rien à régler quand le groupe fixe la zone et les cibles ; sinon, seulement la zone.
+    const scope = callScope();
+    const simple = st.space === "commercial";
+    $("call-filters").hidden = !!scope.group;
+    $("cibles-appel").hidden = simple;
+    $("call-scope").hidden = !scope.group;
+    if (scope.group) $("call-scope").replaceChildren("Groupe ", h("b", {}, scope.group.name), " · ",
+      scope.zones.length ? scope.zones.map((z) => `${z} ${deptName(z)}`).join(", ") : "toute la France", " · ",
+      scope.cibles.length ? scope.cibles.map(cibleLabel).join(", ") : "toutes les cibles");
     $("cibles-appel").replaceChildren(...CIBLES.map(([k, l]) => h("button", {
       class: "chip small", type: "button", "aria-pressed": String(st.cibles.includes(k)), title: CIBLE_HINT[k],
       onclick: () => { st.cibles = st.cibles.includes(k) ? st.cibles.filter((x) => x !== k) : [...st.cibles, k]; persist(); releaseAll(); st.skipped.clear(); render(); },
@@ -1035,14 +1081,14 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
       const q = queue();
       if (st.reserving) { box.replaceChildren(h("div", { class: "empty" }, "Ouverture de la fiche…")); return; }
       if (q.list.length && st.autoStart) { st.autoStart = false; nextCompany(); return; }
-      const withoutPhone = st.companies.filter((c) => (!st.zone || c.department === st.zone) && !c.phone && !(st.prospects.get(c.siren) || {}).phone).length;
+      const withoutPhone = st.companies.filter((c) => (!scope.zones.length || scope.zones.includes(c.department)) && !c.phone && !(st.prospects.get(c.siren) || {}).phone).length;
       box.replaceChildren(q.list.length
         ? h("div", { class: "call-card", style: "align-items:flex-start" },
             h("h2", {}, `${fmtN(q.list.length)} entreprise${q.list.length > 1 ? "s" : ""} prête${q.list.length > 1 ? "s" : ""} à appeler`),
             h("button", { class: "btn", type: "button", onclick: nextCompany }, "Reprendre les appels"),
             h("div", { class: "hint" }, "Raccourcis : 1 à 5 pour le résultat, Entrée pour reprendre."))
         : h("div", { class: "empty" },
-            h("p", { style: "margin:0 0 8px" }, "Plus aucune entreprise à appeler avec ces filtres pour le moment."),
+            h("p", { style: "margin:0 0 8px" }, scope.group ? "Plus aucune entreprise à appeler dans ta zone pour le moment. Préviens ton manager." : "Plus aucune entreprise à appeler avec ces filtres pour le moment."),
             withoutPhone ? h("p", { class: "hint", style: "margin:0" }, `${fmtN(withoutPhone)} entreprises de cette zone attendent leur numéro : la mise à jour de nuit les ajoute au fur et à mesure.`) : null,
             st.skipped.size ? h("button", { class: "link", type: "button", onclick: () => { st.skipped.clear(); render(); } }, "Revoir les fiches passées") : null));
       return;
@@ -1061,7 +1107,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
       h("div", { class: "row" },
         h("a", { class: "appel big-call", href: telHref(phone) }, h("span", { class: "num" }, ICON.phone(), h("span", {}, phone)), h("span", { class: "cta" }, "Appeler")),
         copyBtn(phone)),
-      p.dirigeant ? h("div", { class: "ask" }, ICON.user(), h("div", {}, h("small", {}, "Demandez"), p.dirigeant)) : null,
+      askable(p.dirigeant) ? h("div", { class: "ask" }, ICON.user(), h("div", {}, h("small", {}, "Demandez"), askable(p.dirigeant))) : null,
       h("div", { style: "display:flex;flex-direction:column;gap:6px" },
         h("div", { class: "say-label" }, "Accroche"),
         p.signal ? h("div", { class: "signal" }, p.signal) : null,
@@ -1093,11 +1139,12 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
         h("button", { class: "link", type: "button", onclick: () => { st.rappel = false; renderCall(); } }, "Annuler")));
     }
     side.append(
-      h("label", { class: "label", for: "call-note" }, "Note (facultatif)"),
-      h("input", { id: "call-note", class: "input", type: "text", maxlength: "300", placeholder: "Ex. : standardiste, rappeler après 14 h", value: st.draftNote || "", oninput: (e) => { st.draftNote = e.target.value; } }),
-      next ? h("div", { class: "next-up" }, "Ensuite : ", h("b", {}, next.name), next.city ? ` · ${next.city}` : "") : null,
+      st.noteOpen || st.draftNote
+        ? h("input", { id: "call-note", class: "input", type: "text", maxlength: "300", "aria-label": "Note", placeholder: "Note : standardiste, rappeler après 14 h…", value: st.draftNote || "", oninput: (e) => { st.draftNote = e.target.value; } })
+        : h("button", { class: "link skip", type: "button", onclick: () => { st.noteOpen = true; renderCall(); const i = $("call-note"); if (i) i.focus(); } }, "+ Ajouter une note"),
+      next ? h("div", { class: "next-up" }, "Ensuite : ", h("b", {}, next.name), next.city ? ` · ${next.city}` : "") : "",
       h("button", { class: "link skip", type: "button", onclick: () => { const s = st.current; st.skipped.add(s); st.current = null; release(s); nextCompany(); } }, "Passer sans appeler"),
-      h("button", { class: "link skip", type: "button", onclick: () => openDrawer(p.siren) }, "Ouvrir la fiche complète"));
+      simple ? "" : h("button", { class: "link skip", type: "button", onclick: () => openDrawer(p.siren) }, "Ouvrir la fiche complète"));
 
     box.replaceChildren(h("div", { class: "call" }, card, side));
   }
@@ -1138,7 +1185,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
 
 
   // ------------------------------------------------------------------ Accès : inscription, rôles
-  const ROLES = { commercial: "Commercial", chef: "Chef d’équipe", admin: "Admin" };
+  const ROLES = { commercial: "Commercial", chef: "Manager", admin: "Admin" };
   const isManager = () => st.role === "chef" || st.role === "admin";
   const memberName = (m, id) => (m && (m.firstName || m.lastName) ? `${m.firstName || ""} ${m.lastName || ""}`.trim() : personName(id));
 
@@ -1182,7 +1229,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     let wanted = (prev && prev.role) || (st.gateDoor === "chef" ? "chef" : "commercial");
     const err = h("div", { class: "alert", role: "alert", hidden: true });
     const roleBtns = h("div", { class: "seg", role: "group", "aria-label": "Rôle" });
-    const drawRoles = () => roleBtns.replaceChildren(...[["commercial", "Commercial"], ["chef", "Chef d’équipe"]].map(([k, l]) =>
+    const drawRoles = () => roleBtns.replaceChildren(...[["commercial", "Commercial"], ["chef", "Manager"]].map(([k, l]) =>
       h("button", { class: "chip small", type: "button", "aria-pressed": String(wanted === k), onclick: () => { wanted = k; drawRoles(); } }, l)));
     drawRoles();
     const field = (id, label, type, value, extra) => h("div", { class: "field" }, h("label", { class: "label", for: id }, label),
@@ -1220,13 +1267,13 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
         err, submit));
   }
 
-  async function approve(uid, role) {
+  async function approve(uid, role, groupId) {
     const s = st.signups.get(uid);
     if (!s) return;
     try {
       await st.db.doc("roster/" + uid).set({
         firstName: s.firstName, lastName: s.lastName, phone: s.phone || null, role: role || "commercial", status: "active",
-        approvedBy: st.meId, approvedAt: now(), createdAt: s.createdAt || now(), goal: null,
+        approvedBy: st.meId, approvedAt: now(), createdAt: s.createdAt || now(), goal: null, groupId: groupId || null,
       });
     } catch (e) { managerWriteFailed(e); }
   }
@@ -1308,7 +1355,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     st.teamLoading = true;
     const days = 29;
     const from = plusDays(-days);
-    const members = [...st.roster.entries()].filter(([, m]) => m.status === "active" || m.status === "disabled");
+    const members = visibleMembers();
     const out = new Map();
     await Promise.all(members.map(async ([uid]) => {
       try {
@@ -1424,17 +1471,18 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
       parts.push(h("div", { class: "signups" }, pending.map(([uid, s]) => {
         const sel = h("select", { class: "input", "aria-label": "Rôle attribué" },
           Object.entries(ROLES).filter(([k]) => st.role === "admin" || k === "commercial").map(([k, l]) => h("option", { value: k, selected: k === (s.role === "chef" && st.role === "admin" ? "chef" : "commercial") }, l)));
+        const groupSel = groupSelect(managedGroups().length === 1 ? managedGroups()[0][0] : "", "Groupe");
         return h("div", { class: "signup" },
           h("div", { class: "who-s" }, h("strong", {}, `${s.firstName} ${s.lastName}`),
             h("span", { class: "hint" }, [s.role === "chef" ? "Demande : chef d’équipe" : "Demande : commercial", s.phone, s.createdAt ? "le " + new Date(s.createdAt).toLocaleDateString("fr-FR") : null].filter(Boolean).join(" · ")),
             s.message ? h("span", { class: "hint" }, `« ${s.message} »`) : null),
-          h("div", { class: "acts" }, sel,
-            h("button", { class: "btn", type: "button", onclick: () => approve(uid, sel.value) }, "Accepter"),
+          h("div", { class: "acts" }, sel, groupSel,
+            h("button", { class: "btn", type: "button", onclick: () => approve(uid, sel.value, groupSel.value) }, "Accepter"),
             h("button", { class: "btn ghost", type: "button", onclick: () => refuse(uid) }, "Refuser")));
       })));
     }
 
-    const members = [...st.roster.entries()].filter(([, m]) => m.status === "active" || m.status === "disabled");
+    const members = visibleMembers();
     if (!st.teamDays) {
       parts.push(h("div", { class: "empty" }, "Chargement de l’activité de l’équipe…"));
       box.replaceChildren(...parts); loadTeam(); return;
@@ -1459,7 +1507,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
         const goal = m.role === "admin" ? 0 : m.goal || (st.config && st.config.callsPerDay) || 0;
         const pct = goal ? Math.min(100, Math.round((s.calls / goal) * 100)) : 0;
         return h("tr", {},
-          h("td", {}, h("button", { class: "name-btn", type: "button", onclick: () => openMember(uid) }, memberName(m, uid)), h("div", { class: "hint" }, ROLES[m.role] || m.role)),
+          h("td", {}, h("button", { class: "name-btn", type: "button", onclick: () => openMember(uid) }, memberName(m, uid)), h("div", { class: "hint" }, [ROLES[m.role] || m.role, groupOf(uid) && groupOf(uid).name].filter(Boolean).join(" · "))),
           h("td", { class: "num-cell" }, isToday
             ? (td ? `${new Date(td.firstSeen).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} – ${new Date(td.lastSeen).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}` : "—")
             : `${s.daysActive} j`),
@@ -1474,6 +1522,8 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
           h("td", {}, h("div", { style: "display:flex;flex-wrap:wrap;gap:6px" }, pills(alertsFor(uid)))));
       })))) : h("div", { class: "empty" }, "Aucun commercial validé pour l’instant. Les inscriptions à valider apparaissent ici."));
 
+    parts.push(...renderGroups());
+
     // Objectifs
     const goalInput = h("input", { id: "goal-calls", class: "input", type: "number", min: "0", max: "500", value: (st.config && st.config.callsPerDay) || "" });
     parts.push(h("div", { class: "section-title" }, h("h3", {}, "Objectif d’équipe")),
@@ -1487,6 +1537,79 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
         h("span", { class: "hint" }, "Un objectif personnel peut être fixé dans la fiche de chaque commercial.")));
 
     box.replaceChildren(...parts);
+  }
+
+  function groupSelect(value, label) {
+    return h("select", { class: "input", "aria-label": label },
+      h("option", { value: "" }, "Sans groupe"),
+      managedGroups().map(([id, g]) => h("option", { value: id, selected: id === value }, g.name)));
+  }
+
+  function renderGroups() {
+    const out = [];
+    const isAdmin = st.role === "admin";
+    const list = managedGroups();
+    if (!isAdmin && !list.length) return out;
+    out.push(h("div", { class: "section-title" }, h("h3", {}, isAdmin ? "Groupes" : "Mes groupes"),
+      isAdmin && !st.groupEdit ? h("button", { class: "btn", type: "button", onclick: () => { st.groupEdit = "new"; renderTeam(); } }, "Nouveau groupe") : null));
+    if (st.groupEdit) out.push(groupForm(st.groupEdit));
+    const count = (id) => [...st.roster.values()].filter((m) => m.groupId === id && m.status === "active").length;
+    out.push(list.length ? h("div", { class: "groups" }, list.map(([id, g]) => h("div", { class: "group" },
+      h("h4", {}, g.name),
+      h("div", { class: "hint" }, `Manager : ${g.managerId ? memberName(st.roster.get(g.managerId), g.managerId) : "aucun"} · ${count(id)} commercia${count(id) > 1 ? "ux" : "l"}`),
+      h("div", { class: "hint" }, `Zone : ${(g.departements || []).length ? g.departements.join(", ") : "toute la France"}`),
+      h("div", { class: "hint" }, `Cibles : ${(g.cibles || []).length ? g.cibles.map(cibleLabel).join(", ") : "toutes"}`),
+      h("div", { class: "acts" },
+        h("button", { class: "chip small", type: "button", onclick: () => { st.groupEdit = id; renderTeam(); } }, "Modifier"),
+        isAdmin ? h("button", { class: "chip small", type: "button", onclick: () => deleteGroup(id) }, "Supprimer") : null))))
+      : h("div", { class: "empty" }, "Aucun groupe. Crée un groupe, choisis son manager, sa zone et ses cibles : ses commerciaux n’auront plus qu’à appeler."));
+    return out;
+  }
+
+  function groupForm(id) {
+    const g = id === "new" ? { name: "", managerId: "", departements: [], cibles: [] } : { ...st.groups.get(id) };
+    let cibles = [...(g.cibles || [])];
+    const isAdmin = st.role === "admin";
+    const name = h("input", { id: "g-name", class: "input", type: "text", value: g.name || "", placeholder: "Ex. : Équipe Lyon", required: true, disabled: !isAdmin });
+    const manager = h("select", { id: "g-manager", class: "input", disabled: !isAdmin },
+      h("option", { value: "" }, "Aucun manager"),
+      [...st.roster.entries()].filter(([, m]) => m.status === "active" && (m.role === "chef" || m.role === "admin"))
+        .map(([uid, m]) => h("option", { value: uid, selected: uid === g.managerId }, memberName(m, uid))));
+    const zones = h("input", { id: "g-zones", class: "input", type: "text", value: (g.departements || []).join(", "), placeholder: "Ex. : 69, 01, 38 (vide = toute la France)" });
+    const chips = h("div", { class: "chips" });
+    const drawChips = () => chips.replaceChildren(...CIBLES.map(([k, l]) => h("button", { class: "chip small", type: "button", "aria-pressed": String(cibles.includes(k)),
+      onclick: () => { cibles = cibles.includes(k) ? cibles.filter((x) => x !== k) : [...cibles, k]; drawChips(); } }, l)));
+    drawChips();
+    const err = h("div", { class: "alert", hidden: true });
+    return h("form", { class: "group-form", onsubmit: async (e) => {
+      e.preventDefault();
+      const codes = zones.value.split(/[\s,;]+/).map((x) => x.trim().toUpperCase()).filter(Boolean);
+      const bad = codes.filter((c) => !DEPTS.some((d) => d[0] === c));
+      if (bad.length) { err.hidden = false; err.textContent = `Département inconnu : ${bad.join(", ")}. Utilise les numéros (ex. 69, 2A, 974).`; return; }
+      if (!name.value.trim()) { err.hidden = false; err.textContent = "Donne un nom au groupe."; return; }
+      const body = { name: name.value.trim().slice(0, 60), managerId: manager.value || null, departements: codes, cibles, updatedAt: now() };
+      try {
+        if (id === "new") await st.db.collection("groups").add({ ...body, createdAt: now(), createdBy: st.meId });
+        else await st.db.doc("groups/" + id).update(body);
+        st.groupEdit = null; renderTeam();
+      } catch (e2) { managerWriteFailed(e2); }
+    } },
+      h("div", { class: "two" },
+        h("div", { class: "field" }, h("label", { class: "label", for: "g-name" }, "Nom du groupe"), name),
+        h("div", { class: "field" }, h("label", { class: "label", for: "g-manager" }, "Manager"), manager)),
+      h("div", { class: "field" }, h("label", { class: "label", for: "g-zones" }, "Départements"), zones),
+      h("div", { class: "field" }, h("span", { class: "label" }, "Cibles (aucune = toutes)"), chips),
+      err,
+      h("div", { class: "row", style: "justify-content:flex-start;gap:12px" },
+        h("button", { class: "btn", type: "submit" }, id === "new" ? "Créer le groupe" : "Enregistrer"),
+        h("button", { class: "link", type: "button", onclick: () => { st.groupEdit = null; renderTeam(); } }, "Annuler")));
+  }
+
+  async function deleteGroup(id) {
+    try {
+      for (const [uid, m] of st.roster) if (m.groupId === id) await st.db.doc("roster/" + uid).update({ groupId: null });
+      await st.db.doc("groups/" + id).delete();
+    } catch (e) { managerWriteFailed(e); }
   }
 
   function openMember(uid) {
@@ -1537,6 +1660,9 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
           const co = companyBySiren.get(c.s) || st.prospects.get(c.s) || {};
           return h("li", {}, h("span", {}, `${new Date(c.t).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })} · ${co.name || c.s}`), h("span", { class: "hint" }, `${(OUTCOMES[c.r] || {}).label || c.r}${c.d ? " · " + fmtClock(c.d) : ""}`));
         })) : h("p", { class: "hint", style: "margin:0" }, "Aucun appel enregistré pour l’instant.")),
+      managedGroups().length ? h("section", { class: "box" }, h("h4", {}, "Groupe"),
+        (() => { const sel = groupSelect(m.groupId || "", "Groupe du commercial"); sel.id = "m-group"; sel.addEventListener("change", () => updateMember(uid, { groupId: sel.value || null })); return sel; })(),
+        h("span", { class: "hint" }, "Le commercial appelle automatiquement dans la zone et sur les cibles de son groupe.")) : null,
       h("form", { class: "box", onsubmit: (e) => { e.preventDefault(); updateMember(uid, { goal: Number(goalIn.value) || null }); } },
         h("h4", {}, "Objectif personnel"),
         h("div", { class: "row" }, goalIn, h("button", { class: "btn", type: "submit" }, "Enregistrer")),
@@ -1553,8 +1679,8 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
 
   // ------------------------------------------------------------------ Accueil (vitrine) et choix de l'espace
   const SPACES = {
-    commercial: { label: "Commercial", title: "Espace commercial", desc: "Ta file d’appels, l’annuaire et tes prospects. Tu appelles, un clic sur le résultat, la fiche suivante arrive." },
-    chef: { label: "Chef d’équipe", title: "Espace chef d’équipe", desc: "Le tableau de bord de ton équipe : temps en ligne, appels, RDV, objectifs et alertes. Tu valides les inscriptions." },
+    commercial: { label: "Commercial", title: "Espace commercial", desc: "Tu ouvres, tu appelles. Un clic sur le résultat, l’entreprise suivante arrive. Rien d’autre à régler." },
+    chef: { label: "Manager", title: "Espace manager", desc: "Les chiffres de tes commerciaux : temps en ligne, appels, RDV, objectifs et alertes. Tu valides les inscriptions de ton groupe." },
     admin: { label: "Admin", title: "Espace admin", desc: "Tout l’espace chef, plus les rôles de chacun, la suspension d’un accès et les réglages de l’outil." },
   };
   /** Un rôle ouvre sa porte et celles en dessous (l'admin peut aussi appeler, le chef aussi). */
@@ -1744,6 +1870,11 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
       return;
     }
     if (st.view === "equipe" && !managerSpace) st.view = "appel";
+    // Espace commercial : un seul écran, celui des appels
+    if (st.space === "commercial") {
+      st.view = "appel";
+      ["tab-appel", "tab-annuaire", "tab-prospects"].forEach((id) => { $(id).hidden = true; });
+    }
     for (const v of ["appel", "annuaire", "prospects", "equipe"]) {
       $("view-" + v).hidden = st.view !== v;
       $("tab-" + v).setAttribute("aria-selected", String(st.view === v));
@@ -1839,7 +1970,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     if (!db || !st.meId) { st.connecting = false; render(); return; }
     st.db = db;
     const onErr = (e) => console.warn(e);
-    let first = 3;
+    let first = 4;
     const ready = () => { if (--first === 0) { st.connecting = false; afterAccess(); } render(); };
     db.collection("roster").limit(500).onSnapshot(async (snap) => {
       st.roster = new Map(snap.docs.map((d) => [d.id, d.data()]));
@@ -1856,6 +1987,10 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     }, onErr);
     db.collection("signups").limit(500).onSnapshot((snap) => {
       st.signups = new Map(snap.docs.map((d) => [d.id, d.data()]));
+      if (first > 0) ready(); else render();
+    }, onErr);
+    db.collection("groups").limit(200).onSnapshot((snap) => {
+      st.groups = new Map(snap.docs.map((d) => [d.id, d.data()]));
       if (first > 0) ready(); else render();
     }, onErr);
     db.doc("config/objectifs").onSnapshot((snap) => {
