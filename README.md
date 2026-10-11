@@ -111,6 +111,10 @@ valider lui-même ni lire l'activité de ses collègues.
 
 ### Mise à jour de nuit
 
+L'export du jour est **fusionné** avec l'annuaire existant (`scripts/merge-annuaire.ts`) : les entreprises déjà
+présentes et leurs numéros sont conservés, les nouvelles s'ajoutent. Les numéros manquants sont cherchés par
+`scripts/enrich-phones.ts` (nom officiel) puis `scripts/enrich-phones-pass2.ts` (enseigne, dirigeant, adresse).
+
 Chaque nuit, une tâche programmée recharge l'annuaire (SIRENE, BODACC), reprend les numéros déjà trouvés, en
 cherche de nouveaux sur Google Maps si `GOOGLE_MAPS_API_KEY` est définie (33 par nuit, soit environ 1 000 par
 mois, la part gratuite), compacte le fichier (`scripts/pack-annuaire.ts`) et republie l'artefact.
