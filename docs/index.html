@@ -227,6 +227,13 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
 .outcome kbd { font: 12px var(--font-body); color: var(--muted); border: 1px solid var(--chip-line); border-radius: 6px; padding: 1px 7px; }
 .outcome.win { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); }
 .outcome.wide { grid-column: 1 / -1; }
+.verified { font-size: 14px; color: var(--ok); }
+.profile-ed { display: flex; flex-direction: column; gap: 18px; }
+.profile-ed .sel-zones { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.profile-ed select { height: 44px; }
+.match { padding: 12px 14px; border-radius: 12px; font-size: 15px; }
+.match.ok { background: var(--ok-bg); color: var(--ok); }
+.match.bad { background: var(--danger-bg); color: var(--danger); }
 .team-code { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; border-radius: 12px; background: var(--panel); border: 1px dashed var(--brand); }
 .team-code .l { font-size: 13px; color: var(--muted); }
 .team-code .code { font: 600 22px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .12em; color: var(--brand); }
@@ -360,6 +367,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
       <button class="tab" role="tab" id="tab-equipe" aria-selected="false" hidden>Équipe<span class="badge" id="badge-signups" hidden></span></button>
       <span class="space-tag" id="space-tag" hidden></span>
       <span class="me" id="me" hidden><img alt="" id="me-avatar"><span id="me-name"></span></span>
+      <button class="tab" type="button" id="btn-profil" hidden>Mon profil</button>
       <button class="tab" type="button" id="btn-switch" hidden>Changer d’espace</button>
       <button class="btn" type="button" id="btn-login" style="min-height:42px;padding:0 18px;font-size:13px">Se connecter</button>
     </nav>
@@ -492,6 +500,26 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
   const deptName = (c) => (DEPTS.find((d) => d[0] === c) || [c, c])[1];
   const cibleLabel = (k) => (CIBLES.find((c) => c[0] === k) || [k, "Prospect"])[1];
   const statutLabel = (k) => (STATUTS.find((s) => s[0] === k) || [k, k])[1];
+  // Secteurs d'activité proposés au commercial, reconnus à partir du libellé d'activité officiel (code NAF)
+  const SECTEURS = [
+    ["restauration", "Restauration, cafés, hôtels", /restaura|traiteur|débits? de boissons|hôtel|hébergement touristique|camping/i],
+    ["alimentaire", "Boulangeries, commerces alimentaires", /boulang|pâtiss|boucher|charcut|poissonn|fromag|supermarch|hypermarch|alimentation|épicerie|surgelés|pain|chocolat|confiserie/i],
+    ["sante", "Santé, beauté, sport", /santé|médic|pharmac|dentaire|infirm|kinés|vétérin|ambulan|hospital|clinique|coiffure|beauté|culture physique|sporti/i],
+    ["btp", "BTP, artisans du bâtiment", /travaux|construction|bâtiment|maçonn|menuis|plâtr|couverture|charpent|plomb|chauffage|installation électrique|peinture|terrassement|béton|génie civil/i],
+    ["industrie", "Industrie, énergie, eau", /fabrication|industri|production d.électricité|captage|métallurg|usinage|sciage|imprimerie|mécanique|chimi/i],
+    ["transport", "Transport, logistique, automobile", /transport|entreposage|logisti|déménag|taxi|véhicule|automobile|contrôle technique|poste/i],
+    ["services", "Services, bureaux, immobilier", /conseil|agence|travail temporaire|comptab|juridique|avocat|immobili|assuranc|nettoyage|sécurité|informatique|programmation|télécom|ingénierie|administratif|location|blanchisserie|banc|financ/i],
+    ["commerce", "Commerces et boutiques", /commerce|vente|magasin|détail|gros/i],
+  ];
+  const secteurOf = (activity) => { for (const [k, , re] of SECTEURS) if (re.test(activity || "")) return k; return "autres"; };
+  const secteurLabel = (k) => (SECTEURS.find((x) => x[0] === k) || [k, "Autres activités"])[1];
+  // Comment le numéro a été prouvé (seuls les numéros prouvés sont publiés)
+  const PROOF = {
+    site: "fiche Google à la même adresse, confirmée par le site de l’entreprise",
+    google: "fiche Google au même nom et à la même adresse",
+    enseigne: "fiche Google de l’enseigne, à la même adresse",
+    dirigeant: "fiche Google au nom du dirigeant, à la même adresse",
+  };
   const STEP = 24;
 
   // ------------------------------------------------------------------ État
@@ -632,6 +660,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     if (phone) actions.append(h("div", { class: "row" },
       h("a", { class: "appel", href: telHref(phone) }, h("span", { class: "num" }, ICON.phone(), h("span", {}, phone)), h("span", { class: "cta" }, "Appeler")),
       copyBtn(phone)));
+    if (phone && c.phoneProof && !PUBLIC) actions.append(h("div", { class: "verified" }, "✓ Numéro vérifié"));
     if (p && p.email) actions.append(h("div", { class: "row" }, h("a", { class: "mail", href: "mailto:" + p.email }, ICON.mail(), h("span", {}, p.email)), copyBtn(p.email)));
     if (!p && !PUBLIC) actions.append(h("button", { class: "btn-outline", type: "button", disabled: !st.db || !st.canWrite, onclick: (e) => claim(c, e.currentTarget) },
       ICON.plus(), st.db ? "Ajouter à mes prospects" : "Connectez-vous pour suivre"));
@@ -742,12 +771,12 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     $("drawer").querySelector(".close").focus();
   }
   function closeDrawer() {
-    st.open = null; st.memberOpen = null;
+    st.open = null; st.memberOpen = null; st.profileOpen = false;
     if (st.notesUnsub) { st.notesUnsub(); st.notesUnsub = null; }
     $("scrim").hidden = true; $("drawer").hidden = true; document.body.style.overflow = "";
   }
   $("scrim").addEventListener("click", closeDrawer);
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && (st.open || st.memberOpen)) closeDrawer(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && (st.open || st.memberOpen || st.profileOpen)) closeDrawer(); });
 
   function renderDrawer() {
     const p = st.prospects.get(st.open);
@@ -894,10 +923,27 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
   // Un groupe (créé par l'admin) réunit des commerciaux sous un manager, avec sa zone et ses cibles.
   // Un commercial d'un groupe n'a rien à régler : sa file d'appels suit la zone et les cibles du groupe.
   const groupOf = (uid) => { const m = st.roster.get(uid); return m && m.groupId ? st.groups.get(m.groupId) : null; };
+  // Espace commercial : la file suit le profil du commercial (ses départements, cibles, secteurs),
+  // dans la limite de la zone et des cibles de son groupe quand le manager les a fixées.
   function callScope() {
-    const g = st.space === "commercial" ? groupOf(st.meId) : null;
-    if (g && ((g.departements || []).length || (g.cibles || []).length)) return { zones: g.departements || [], cibles: g.cibles || [], group: g };
-    return { zones: st.zone ? [st.zone] : [], cibles: st.cibles, group: null };
+    if (st.space === "commercial") {
+      const g = groupOf(st.meId), pr = st.myProfile;
+      if (g || pr) {
+        let conflict = false;
+        const pick = (fromGroup, fromProfile) => {
+          if (fromGroup.length && fromProfile.length) {
+            const both = fromProfile.filter((x) => fromGroup.includes(x));
+            if (both.length) return both;
+            conflict = true; return fromGroup;
+          }
+          return fromProfile.length ? fromProfile : fromGroup;
+        };
+        const zones = pick((g && g.departements) || [], (pr && pr.zones) || []);
+        const cibles = pick((g && g.cibles) || [], (pr && pr.cibles) || []);
+        return { zones, cibles, secteurs: (pr && pr.secteurs) || [], group: g, profile: pr, conflict };
+      }
+    }
+    return { zones: st.zone ? [st.zone] : [], cibles: st.cibles, secteurs: [], group: null, profile: null };
   }
   /** Commerciaux visibles dans le tableau de bord : tous pour l'admin, ceux de ses groupes pour un manager. */
   function visibleMembers() {
@@ -936,6 +982,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
       if (seen.has(c.siren)) continue; seen.add(c.siren);
       if (scope.zones.length && !scope.zones.includes(c.department)) continue;
       if (scope.cibles.length && !scope.cibles.includes(c.cible)) continue;
+      if (scope.secteurs.length && !scope.secteurs.includes(c.sect)) continue;
       if (c.cible === "difficulte" && st.signaux.length && !st.signaux.includes(c.sig)) continue;
       if (c.siren === st.current || c.siren === st.nextUp) continue;
       const p = st.prospects.get(c.siren);
@@ -1101,12 +1148,17 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     // Espace commercial : rien à régler quand le groupe fixe la zone et les cibles ; sinon, seulement la zone.
     const scope = callScope();
     const simple = st.space === "commercial";
-    $("call-filters").hidden = !!scope.group;
+    const fixed = !!(scope.group || scope.profile);
+    $("call-filters").hidden = fixed;
     $("cibles-appel").hidden = simple;
-    $("call-scope").hidden = !scope.group;
-    if (scope.group) $("call-scope").replaceChildren("Groupe ", h("b", {}, scope.group.name), " · ",
-      scope.zones.length ? scope.zones.map((z) => `${z} ${deptName(z)}`).join(", ") : "toute la France", " · ",
-      scope.cibles.length ? scope.cibles.map(cibleLabel).join(", ") : "toutes les cibles");
+    $("call-scope").hidden = !fixed;
+    if (fixed) $("call-scope").replaceChildren(
+      ...(scope.profile ? ["Ton profil", scope.group ? ` (groupe ${scope.group.name})` : ""] : ["Groupe ", h("b", {}, scope.group.name)]), " : ",
+      h("b", {}, scope.zones.length ? scope.zones.map((z) => `${z} ${deptName(z)}`).join(", ") : "toute la France"), " · ",
+      scope.cibles.length ? scope.cibles.map(cibleLabel).join(", ") : "toutes les cibles",
+      scope.secteurs.length ? " · " + scope.secteurs.map(secteurLabel).join(", ") : "",
+      scope.conflict ? h("span", { class: "hint" }, " (une partie de ton profil sort de la zone du groupe : la zone du groupe s’applique)") : "",
+      " · ", h("button", { class: "link", type: "button", onclick: openProfile }, "Modifier mon profil"));
     $("cibles-appel").replaceChildren(...CIBLES.map(([k, l]) => h("button", {
       class: "chip small", type: "button", "aria-pressed": String(st.cibles.includes(k)), title: CIBLE_HINT[k],
       onclick: () => { st.cibles = st.cibles.includes(k) ? st.cibles.filter((x) => x !== k) : [...st.cibles, k]; persist(); releaseAll(); st.skipped.clear(); render(); },
@@ -1116,6 +1168,14 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     const box = $("call");
     if (!st.companies.length) { box.replaceChildren(h("div", { class: "empty" }, "Chargement de l’annuaire…")); return; }
 
+    // Commercial sans profil : il dit d'abord ce qu'il veut prospecter
+    if (simple && st.myProfileLoaded && !st.myProfile && !st.current) {
+      box.replaceChildren(h("div", { class: "call-card" },
+        h("h2", {}, "Avant ton premier appel"),
+        h("p", { class: "lede", style: "max-width:none;flex:none" }, "Dis-nous ce que tu veux prospecter : ta file d’appels ne contiendra que des entreprises qui y correspondent, avec un numéro vérifié."),
+        profileForm(() => render())));
+      return;
+    }
     const p = st.current && st.prospects.get(st.current);
     if (!st.current || !p) {
       const q = queue();
@@ -1128,7 +1188,8 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
             h("button", { class: "btn", type: "button", onclick: nextCompany }, "Reprendre les appels"),
             h("div", { class: "hint" }, "Raccourcis : 1 à 5 pour le résultat, Entrée pour reprendre."))
         : h("div", { class: "empty" },
-            h("p", { style: "margin:0 0 8px" }, scope.group ? "Plus aucune entreprise à appeler dans ta zone pour le moment. Préviens ton manager." : "Plus aucune entreprise à appeler avec ces filtres pour le moment."),
+            h("p", { style: "margin:0 0 8px" }, scope.profile ? "Plus aucune entreprise avec un numéro vérifié dans ton profil pour le moment." : scope.group ? "Plus aucune entreprise à appeler dans ta zone pour le moment. Préviens ton manager." : "Plus aucune entreprise à appeler avec ces filtres pour le moment."),
+            scope.profile ? h("p", { style: "margin:0 0 8px" }, h("button", { class: "btn", type: "button", onclick: openProfile }, "Élargir mon profil")) : null,
             withoutPhone ? h("p", { class: "hint", style: "margin:0" }, `${fmtN(withoutPhone)} entreprises de cette zone attendent leur numéro : la mise à jour de nuit les ajoute au fur et à mesure.`) : null,
             st.skipped.size ? h("button", { class: "link", type: "button", onclick: () => { st.skipped.clear(); render(); } }, "Revoir les fiches passées") : null));
       return;
@@ -1147,6 +1208,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
       h("div", { class: "row" },
         h("a", { class: "appel big-call", href: telHref(phone) }, h("span", { class: "num" }, ICON.phone(), h("span", {}, phone)), h("span", { class: "cta" }, "Appeler")),
         copyBtn(phone)),
+      c.phoneProof && phone === c.phone ? h("div", { class: "verified" }, "✓ Numéro vérifié : " + (PROOF[c.phoneProof] || "source contrôlée")) : null,
       askable(p.dirigeant) ? h("div", { class: "ask" }, ICON.user(), h("div", {}, h("small", {}, "Demandez"), askable(p.dirigeant))) : null,
       h("div", { style: "display:flex;flex-direction:column;gap:6px" },
         h("div", { class: "say-label" }, "Accroche"),
@@ -1232,6 +1294,111 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
   window.addEventListener("pagehide", () => { releaseAll(); flushActivity(true); });
 
 
+  // ------------------------------------------------------------------ Profil du commercial : ce qu'il veut prospecter
+  // Chaque choix affiche combien d'entreprises avec un numéro vérifié y correspondent : on ne peut pas choisir
+  // un département vide, et le profil ne s'enregistre que s'il donne au moins une entreprise à appeler.
+  const emptyPrefs = () => ({ zones: [], cibles: [], secteurs: [] });
+  function prefsMatch(c, pr, skip) {
+    return (skip === "zones" || !pr.zones.length || pr.zones.includes(c.department))
+      && (skip === "cibles" || !pr.cibles.length || pr.cibles.includes(c.cible))
+      && (skip === "secteurs" || !pr.secteurs.length || pr.secteurs.includes(c.sect));
+  }
+  /** Nombre d'entreprises (SIREN distincts) avec numéro vérifié, au total et par valeur d'un critère. */
+  function prefsCounts(pr, field, skip) {
+    const sets = new Map(), all = new Set();
+    for (const c of st.companies) {
+      if (!c.phone) continue;
+      if (prefsMatch(c, pr)) all.add(c.siren);
+      if (field && prefsMatch(c, pr, skip)) { if (!sets.has(c[field])) sets.set(c[field], new Set()); sets.get(c[field]).add(c.siren); }
+    }
+    const by = new Map([...sets].map(([k, v]) => [k, v.size]));
+    return { total: all.size, by };
+  }
+  const prefsText = (pr) => !pr ? "" : [
+    pr.zones.length ? pr.zones.map((z) => `${z} ${deptName(z)}`).join(", ") : "toute la France",
+    pr.cibles.length ? pr.cibles.map(cibleLabel).join(", ") : "toutes les cibles",
+    pr.secteurs.length ? pr.secteurs.map(secteurLabel).join(", ") : "tous les secteurs"].join(" · ");
+
+  function profileEditor(initial, allowedZones) {
+    const pr = { ...emptyPrefs(), ...(initial || {}) };
+    pr.zones = [...pr.zones]; pr.cibles = [...pr.cibles]; pr.secteurs = [...pr.secteurs];
+    const box = h("div", { class: "profile-ed" });
+    const toggle = (list, k) => { const i = list.indexOf(k); if (i >= 0) list.splice(i, 1); else list.push(k); draw(); };
+    function draw() {
+      if (!st.companies.length) { box.replaceChildren(h("div", { class: "hint" }, "Chargement de l’annuaire…")); return; }
+      const byDept = prefsCounts(pr, "department", "zones").by, byCible = prefsCounts(pr, "cible", "cibles").by, bySect = prefsCounts(pr, "sect", "secteurs").by;
+      const total = prefsCounts(pr).total;
+      const depts = DEPTS.filter(([d]) => !allowedZones || allowedZones.includes(d));
+      const sel = h("select", { class: "input", id: "pf-dept", "aria-label": "Ajouter un département",
+        onchange: (e) => { if (e.target.value && !pr.zones.includes(e.target.value)) pr.zones.push(e.target.value); draw(); } },
+        h("option", { value: "" }, pr.zones.length ? "+ Ajouter un département" : "Choisis un département"),
+        depts.filter(([d]) => !pr.zones.includes(d)).map(([d, n]) => h("option", { value: d, disabled: !byDept.get(d) }, `${d} · ${n} (${fmtN(byDept.get(d) || 0)})`)));
+      box.replaceChildren(
+        h("div", { class: "field" }, h("span", { class: "label" }, "Où veux-tu prospecter ?"),
+          allowedZones ? h("span", { class: "hint" }, `Zone de ton groupe : ${allowedZones.map((z) => `${z} ${deptName(z)}`).join(", ")}.`) : null,
+          h("div", { class: "sel-zones" },
+            pr.zones.map((z) => h("button", { class: "chip small", type: "button", "aria-pressed": "true", title: "Retirer", onclick: () => toggle(pr.zones, z) }, `${z} ${deptName(z)} ×`)),
+            sel),
+          h("span", { class: "hint" }, "Entre parenthèses : entreprises avec un numéro vérifié pour tes cibles et secteurs.")),
+        h("div", { class: "field" }, h("span", { class: "label" }, "Quelles cibles ? (aucune = toutes)"),
+          h("div", { class: "chips" }, CIBLES.map(([k, l]) => h("button", { class: "chip small", type: "button", title: CIBLE_HINT[k], "aria-pressed": String(pr.cibles.includes(k)), onclick: () => toggle(pr.cibles, k) },
+            l, h("span", { class: "count" }, fmtN(byCible.get(k) || 0)))))),
+        h("div", { class: "field" }, h("span", { class: "label" }, "Quels secteurs ? (aucun = tous)"),
+          h("div", { class: "chips" }, SECTEURS.map(([k, l]) => h("button", { class: "chip small", type: "button", "aria-pressed": String(pr.secteurs.includes(k)), onclick: () => toggle(pr.secteurs, k) },
+            l, h("span", { class: "count" }, fmtN(bySect.get(k) || 0)))))),
+        h("div", { class: "match " + (pr.zones.length && total ? "ok" : "bad"), role: "status" },
+          !pr.zones.length ? "Choisis au moins un département."
+            : total ? `${fmtN(total)} entreprise${total > 1 ? "s" : ""} avec un numéro vérifié correspond${total > 1 ? "ent" : ""} à ton choix.`
+            : "Aucune entreprise avec un numéro vérifié ne correspond : ajoute un département, ou retire une cible ou un secteur."));
+    }
+    box._draw = draw;
+    draw();
+    return { el: box, get: () => ({ zones: [...pr.zones], cibles: [...pr.cibles], secteurs: [...pr.secteurs] }), valid: () => pr.zones.length > 0 && prefsCounts(pr).total > 0 };
+  }
+
+  async function saveProfile(prefs) {
+    const body = { ...prefs, updatedAt: now() };
+    await st.db.doc("profiles/" + st.meId).set(body);
+    st.myProfile = body; st.myProfileLoaded = true;
+    // La file repart de zéro avec le nouveau profil
+    releaseAll(); st.skipped.clear();
+  }
+
+  /** Formulaire de profil (écran d'appel et panneau « Mon profil »). */
+  function profileForm(done) {
+    const g = groupOf(st.meId);
+    const allowed = g && (g.departements || []).length ? g.departements : null;
+    const ed = profileEditor(st.myProfile, allowed);
+    const err = h("div", { class: "alert", role: "alert", hidden: true });
+    const btn = h("button", { class: "btn", type: "submit" }, "Enregistrer mon profil");
+    return h("form", { class: "form", style: "display:flex;flex-direction:column;gap:16px", onsubmit: async (e) => {
+      e.preventDefault();
+      if (!ed.valid()) { err.hidden = false; err.textContent = "Ton profil doit donner au moins une entreprise à appeler."; return; }
+      btn.disabled = true; err.hidden = true;
+      try { await saveProfile(ed.get()); done(); }
+      catch (e2) { btn.disabled = false; err.hidden = false; err.textContent = "Le profil n’a pas pu être enregistré. Vérifie ta connexion et réessaie."; }
+    } }, ed.el, err, btn);
+  }
+
+  function openProfile() {
+    st.open = null; st.memberOpen = null; st.profileOpen = true;
+    $("scrim").hidden = false; $("drawer").hidden = false; document.body.style.overflow = "hidden";
+    const m = st.roster.get(st.meId) || {}, g = groupOf(st.meId);
+    const kv = h("dl", { class: "kv" });
+    const add = (k, v) => { if (v) kv.append(h("dt", {}, k), h("dd", {}, v)); };
+    add("Nom", memberName(m, st.meId)); add("Téléphone", m.phone); add("E-mail", m.email);
+    add("Groupe", g && g.name); add("Manager", g && g.managerId ? memberName(st.roster.get(g.managerId), g.managerId) : null);
+    $("drawer").replaceChildren(
+      h("div", { class: "drawer-head" },
+        h("div", { style: "display:flex;flex-direction:column;gap:10px;min-width:0" }, h("div", { class: "eyebrow" }, "Mon profil"), h("h2", { id: "d-name" }, memberName(m, st.meId))),
+        h("button", { class: "close", type: "button", "aria-label": "Fermer", onclick: closeDrawer }, "×")),
+      h("section", { class: "box" }, h("h4", {}, "Mes coordonnées"), kv, h("span", { class: "hint" }, "Pour les changer, demande à ton manager.")),
+      h("section", { class: "box" }, h("h4", {}, "Ma prospection"),
+        h("span", { class: "hint" }, "Ta file d’appels ne contient que des entreprises qui correspondent à ces choix, avec un numéro vérifié. Ton manager voit ce profil."),
+        profileForm(() => { closeDrawer(); render(); })));
+    $("drawer").querySelector(".close").focus();
+  }
+
   // ------------------------------------------------------------------ Accès : inscription, rôles
   const ROLES = { commercial: "Commercial", chef: "Manager", admin: "Admin" };
   const isManager = () => st.role === "chef" || st.role === "admin";
@@ -1245,6 +1412,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
 
   function renderGate() {
     const g = $("gate");
+    const wasForm = g.dataset.form; g.dataset.form = "";
     const m = st.roster.get(st.meId);
     const sign = st.signups.get(st.meId);
     if (st.connecting) { g.replaceChildren(h("div", { class: "empty" }, "Connexion…")); return; }
@@ -1261,17 +1429,20 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
       return;
     }
     if (sign && !m) {
+      if (st.editSignup && wasForm === "edit" && g.querySelector("#su-first")) { g.dataset.form = "edit"; return; }
       g.replaceChildren(h("div", { class: "eyebrow" }, "Inscription envoyée"),
         h("h1", {}, "En attente ", h("span", { class: "serif", style: "display:inline" }, "de validation.")),
         h("p", { class: "lede" }, h("span", { class: "pending-dot", "aria-hidden": "true" }),
           sign.code
             ? `Merci ${sign.firstName}. Code d’équipe ${sign.code} envoyé : ton accès s’ouvre tout seul dès que ton manager (ou l’admin) a Uptimise ouvert. Cette page s’ouvrira toute seule.`
             : `Merci ${sign.firstName}. ${sign.role === "chef" ? "L’admin" : "Ton manager"} doit valider ton inscription. Cette page s’ouvrira toute seule dès que ce sera fait.`),
-        h("button", { class: "link", type: "button", onclick: () => { st.editSignup = true; renderSignupForm(sign); } }, "Modifier mon inscription"));
-      if (st.editSignup) renderSignupForm(sign);
+        h("button", { class: "link", type: "button", onclick: () => { st.editSignup = true; renderSignupForm(sign); $("gate").dataset.form = "edit"; } }, "Modifier mon inscription"));
+      if (st.editSignup) { renderSignupForm(sign); g.dataset.form = "edit"; }
       return;
     }
+    if (wasForm === "new" && g.querySelector("#su-first")) { g.dataset.form = "new"; return; } // formulaire en cours de saisie : on n'efface rien
     renderSignupForm(null);
+    g.dataset.form = "new";
   }
 
   function renderSignupForm(prev) {
@@ -1289,7 +1460,10 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
       h("input", { id: "su-code", class: "input code-input", type: "text", maxlength: "8", autocomplete: "off", value: (prev && prev.code) || "", placeholder: "Ex. : K7M2QX",
         oninput: (e) => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""); } }),
       h("span", { class: "hint" }, "Avec le bon code, ton accès est validé tout seul et tu rejoins directement le groupe de ton manager."));
-    const showCode = () => { codeField.hidden = wanted !== "commercial"; };
+    // Questionnaire de prospection (commercial seulement)
+    const prof = profileEditor(prev && prev.prefs);
+    const profField = h("div", { class: "field" }, h("span", { class: "label", style: "font-size:13px" }, "Ta prospection"), prof.el);
+    const showCode = () => { codeField.hidden = wanted !== "commercial"; profField.hidden = wanted !== "commercial"; };
     g.replaceChildren(
       h("div", { class: "eyebrow" }, "Espace commerciaux"),
       h("h1", {}, "Inscription, ", h("span", { class: "serif", style: "display:inline" }, "une minute.")),
@@ -1297,13 +1471,16 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
       h("form", { class: "form", onsubmit: async (e) => {
         e.preventDefault();
         const val = (id) => $(id).value.trim();
-        if (!val("su-first") || !val("su-last")) { err.hidden = false; err.textContent = "Indiquez votre prénom et votre nom."; return; }
+        if (!val("su-first") || !val("su-last")) { err.hidden = false; err.textContent = "Indique ton prénom et ton nom."; return; }
+        if (wanted === "commercial" && !prof.valid()) { err.hidden = false; err.textContent = "Choisis au moins un département où des entreprises ont un numéro vérifié."; return; }
         submit.disabled = true; err.hidden = true;
+        const prefs = wanted === "commercial" ? prof.get() : null;
         try {
+          if (prefs) await saveProfile(prefs); // le profil d'abord : il est prêt quand l'accès est validé
           await st.db.doc("signups/" + st.meId).set({
             firstName: val("su-first").slice(0, 60), lastName: val("su-last").slice(0, 60), phone: val("su-phone").slice(0, 30),
             email: val("su-email").slice(0, 120), code: wanted === "commercial" ? val("su-code").toUpperCase().slice(0, 8) : "",
-            role: wanted, message: val("su-msg").slice(0, 300), createdAt: (prev && prev.createdAt) || now(), updatedAt: now(),
+            role: wanted, message: val("su-msg").slice(0, 300), prefs, createdAt: (prev && prev.createdAt) || now(), updatedAt: now(),
           });
           st.editSignup = false;
           st.signups.set(st.meId, { firstName: val("su-first"), role: wanted, code: wanted === "commercial" ? val("su-code").toUpperCase() : "" });
@@ -1319,6 +1496,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
         h("div", { class: "two" }, field("su-phone", "Téléphone", "tel", prev && prev.phone, { autocomplete: "tel", required: false }), field("su-email", "E-mail", "email", prev && prev.email, { autocomplete: "email", required: false })),
         h("div", { class: "field" }, h("span", { class: "label" }, "Je suis"), roleBtns),
         codeField,
+        profField,
         h("div", { class: "field" }, h("label", { class: "label", for: "su-msg" }, "Message (facultatif)"),
           h("input", { id: "su-msg", class: "input", type: "text", value: (prev && prev.message) || "", placeholder: "Ex. : équipe Lyon, arrivé lundi" })),
         err, submit));
@@ -1588,6 +1766,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
         return h("div", { class: "signup" },
           h("div", { class: "who-s" }, h("strong", {}, `${s.firstName} ${s.lastName}`),
             h("span", { class: "hint" }, [s.role === "chef" ? "Demande : manager" : "Demande : commercial", s.phone, s.createdAt ? "le " + new Date(s.createdAt).toLocaleDateString("fr-FR") : null].filter(Boolean).join(" · ")),
+            s.prefs ? h("span", { class: "hint" }, `Veut prospecter : ${prefsText({ ...emptyPrefs(), ...s.prefs })}`) : null,
             s.code ? h("span", { class: "hint" }, `Code : ${s.code}${[...st.codes.values()].includes(s.code) ? "" : " (inconnu)"}`) : null,
             s.message ? h("span", { class: "hint" }, `« ${s.message} »`) : null),
           h("div", { class: "acts" }, sel, groupSel,
@@ -1782,6 +1961,19 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
       h("section", { class: "box" },
         barChart({ values: perDay, labels: last30.map((x) => x.slice(8, 10) + "/" + x.slice(5, 7)), title: "Appels par jour · 30 derniers jours", unit: "appels" }),
         barChart({ values: perHour, labels: hours.map((x) => x + " h"), title: "Appels par heure · période choisie", unit: "appels", height: 150 })),
+      (() => {
+        const raw = (st.profilesAll && st.profilesAll.get(uid)) || (st.signups.get(uid) || {}).prefs;
+        const pr = raw ? { ...emptyPrefs(), ...raw } : null;
+        const kvp = h("dl", { class: "kv" });
+        if (pr) kvp.append(
+          h("dt", {}, "Départements"), h("dd", {}, pr.zones.length ? pr.zones.map((z) => `${z} ${deptName(z)}`).join(", ") : "toute la France"),
+          h("dt", {}, "Cibles"), h("dd", {}, pr.cibles.length ? pr.cibles.map(cibleLabel).join(", ") : "toutes"),
+          h("dt", {}, "Secteurs"), h("dd", {}, pr.secteurs.length ? pr.secteurs.map(secteurLabel).join(", ") : "tous"),
+          h("dt", {}, "Entreprises"), h("dd", {}, `${fmtN(prefsCounts(pr).total)} avec un numéro vérifié`));
+        return h("section", { class: "box" }, h("h4", {}, "Ce qu’il veut prospecter"),
+          pr ? kvp : h("p", { class: "hint", style: "margin:0" }, "Pas encore renseigné : il le remplira à sa prochaine connexion."),
+          pr && raw.updatedAt ? h("span", { class: "hint" }, "Mis à jour le " + new Date(raw.updatedAt).toLocaleDateString("fr-FR") + ". Il peut le changer dans « Mon profil ».") : null);
+      })(),
       h("section", { class: "box" }, h("h4", {}, `Ses prospects (${mine.length})`),
         byStatus.length ? h("div", { style: "display:flex;flex-wrap:wrap;gap:6px" }, byStatus.map(([l, n]) => h("span", { class: "pill" }, `${l} : ${n}`))) : h("p", { class: "hint", style: "margin:0" }, "Aucune fiche suivie pour l’instant."),
         follow.length ? h("ul", { class: "log" }, follow.map((p) => h("li", {},
@@ -1946,7 +2138,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
         h("header", {}, h("div", { class: "eyebrow" }, "Un espace par rôle"), h("h2", {}, "Chacun voit ", h("span", { class: "serif" }, "ce qui le concerne."))),
         h("div", { class: "roles" },
           h("div", { class: "role-card" }, h("div", { class: "cat" }, "Commercial"), h("h3", {}, "Appeler, sans friction"),
-            h("ul", {}, h("li", {}, "File d’appels partagée, sans doublon avec les collègues"), h("li", {}, "Rappels et relances automatiques"), h("li", {}, "Tes chiffres du jour et ton objectif"))),
+            h("ul", {}, h("li", {}, "Une file d’appels selon ton profil : départements, cibles, secteurs"), h("li", {}, "Seulement des numéros vérifiés, jamais celui d’un collègue"), h("li", {}, "Rappels et relances automatiques"), h("li", {}, "Tes chiffres du jour et ton objectif"))),
           h("div", { class: "role-card" }, h("div", { class: "cat" }, "Manager"), h("h3", {}, "Piloter l’équipe"),
             h("ul", {}, h("li", {}, "Un code d’équipe pour faire entrer ses commerciaux"), h("li", {}, "Temps en ligne, appels, RDV, prospects de chacun"), h("li", {}, "Objectifs et alertes d’inactivité ou de retard"))),
           h("div", { class: "role-card" }, h("div", { class: "cat" }, "Admin"), h("h3", {}, "Gérer l’outil"),
@@ -1956,7 +2148,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
         h("header", {}, h("div", { class: "eyebrow" }, "Rejoindre l’équipe"), h("h2", {}, "Inscrit en ", h("span", { class: "serif" }, "une minute."))),
         h("ol", { class: "steps" },
           h("li", {}, h("h3", {}, "Connecte-toi"), h("p", {}, "Ouvre ce lien avec ton compte claude.ai : il sert d’identifiant, sans mot de passe à retenir.")),
-          h("li", {}, h("h3", {}, "Choisis « Commercial »"), h("p", {}, "Prénom, nom, téléphone, et le code d’équipe donné par ton manager.")),
+          h("li", {}, h("h3", {}, "Choisis « Commercial »"), h("p", {}, "Tes coordonnées, le code d’équipe donné par ton manager, et ce que tu veux prospecter : départements, cibles, secteurs.")),
           h("li", {}, h("h3", {}, "C’est parti"), h("p", {}, "Avec le bon code, la page s’ouvre aussitôt sur ta file d’appels, dans le groupe de ton manager.")))),
 
       h("div", { class: "cta-band" },
@@ -1985,6 +2177,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     $("tab-equipe").hidden = !inApp || !managerSpace;
     if (PUBLIC) { $("annuaire-lede").textContent = "Choisissez votre zone de chalandise et vos cibles. Chaque fiche donne la raison d’appeler, le dirigeant à demander et, en un clic, de quoi trouver le numéro."; $("tab-appel").hidden = true; $("tab-prospects").hidden = true; $("hide-taken").closest("label").hidden = true; }
     $("btn-switch").hidden = !inApp;
+    $("btn-profil").hidden = !inApp || st.space !== "commercial";
     $("btn-switch").textContent = PUBLIC ? "Présentation" : "Changer d’espace";
     $("btn-login").hidden = screen !== "accueil";
     $("btn-login").textContent = PUBLIC ? ENTRY_LABEL : st.role && savedSpace ? "Mon espace" : "Se connecter";
@@ -2052,6 +2245,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     if (st.role && savedSpace && canOpen(st.role, savedSpace)) { enterSpace(savedSpace); return; }
     st.screen = "connexion"; location.hash = "connexion"; render(); scrollTo(0, 0);
   });
+  $("btn-profil").addEventListener("click", openProfile);
   $("btn-switch").addEventListener("click", () => { st.leftOnce = true; leaveSpace(PUBLIC ? "accueil" : "connexion"); });
   $("logo").addEventListener("click", () => { if (st.screen === "app") { st.leftOnce = true; leaveSpace("accueil"); } else { st.screen = "accueil"; location.hash = ""; render(); scrollTo(0, 0); } });
   // Retour direct dans son espace pour qui s'est déjà connecté sur cet appareil (gain de temps)
@@ -2077,9 +2271,11 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
       st.companies = rows.map((c) => ({
         ...c,
         sig: c.cible === "difficulte" ? (c.signal && c.signal.includes("BODACC") ? "procedure" : "pertes") : null,
+        sect: secteurOf(c.activity),
         _hay: norm([c.name, c.activity, c.city, c.postalCode, c.dirigeant, c.siren].join(" ")),
       }));
       for (const c of st.companies) if (!companyBySiren.has(c.siren)) companyBySiren.set(c.siren, c);
+      document.querySelectorAll(".profile-ed").forEach((el) => el._draw && el._draw());
       $("banner").textContent = `Données officielles et publiques · SIRENE, comptes annuels et BODACC · instantané du ${new Date(data.generatedAt).toLocaleDateString("fr-FR")}`;
     } catch (e) {
       $("count").textContent = "Annuaire indisponible";
@@ -2127,6 +2323,13 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
       autoApprove();
       if (first > 0) ready(); else render();
     }, onErr);
+    // Profil de prospection du commercial (ses départements, cibles, secteurs)
+    db.doc("profiles/" + st.meId).onSnapshot((snap) => {
+      const had = JSON.stringify(st.myProfile || null);
+      st.myProfile = snap.exists ? snap.data() : null; st.myProfileLoaded = true;
+      if (had !== JSON.stringify(st.myProfile || null) && st.space === "commercial") { releaseAll(); st.skipped.clear(); }
+      if (st.screen === "app") render();
+    }, () => { st.myProfileLoaded = true; });
     // Codes d'équipe : lisibles seulement par l'admin et les managers (accès Éditeur) ; vide pour les commerciaux.
     db.collection("groupcodes").limit(200).onSnapshot((snap) => {
       st.codes = new Map(snap.docs.map((d) => [d.id, d.data().code]));
@@ -2164,6 +2367,10 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     loadActivity();
     autoApprove(); ensureCodes();
     if (isManager()) {
+      db.collection("profiles").limit(500).onSnapshot((snap) => {
+        st.profilesAll = new Map(snap.docs.map((d) => [d.id, d.data()]));
+        if (st.memberOpen) renderMember();
+      }, (e) => console.warn(e));
       db.collection("activity").limit(500).onSnapshot((snap) => {
         st.presence = new Map(snap.docs.map((d) => [d.id, d.data()]));
         if (st.view === "equipe") renderTeam();

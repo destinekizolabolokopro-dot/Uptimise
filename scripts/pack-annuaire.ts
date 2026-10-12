@@ -5,7 +5,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 
 const FIELDS = [
   "siren", "name", "activity", "city", "postalCode", "address", "department", "headcount",
-  "cible", "signal", "pitch", "dirigeant", "phone", "website", "mapsUrl", "phoneCheckedAt",
+  "cible", "signal", "pitch", "dirigeant", "phone", "website", "mapsUrl", "phoneCheckedAt", "phoneProof",
 ] as const;
 const DICT = new Set(["activity", "city", "headcount", "cible", "pitch", "department"]);
 

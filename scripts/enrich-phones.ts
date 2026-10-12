@@ -10,6 +10,7 @@
 //
 // Le fichier d'annuaire est réécrit avec les champs phone, website et mapsUrl renseignés.
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { strictMatch, validPhone } from "../lib/phone-check";
 
 type Company = {
   siren: string;
@@ -22,8 +23,9 @@ type Company = {
   website?: string | null;
   mapsUrl?: string | null;
   phoneCheckedAt?: string | null;
+  phoneProof?: string | null;
 };
-type Hit = { phone: string | null; website: string | null; mapsUrl: string | null; checkedAt: string };
+type Hit = { phone: string | null; website: string | null; mapsUrl: string | null; checkedAt: string; proof?: string | null };
 
 const args = Object.fromEntries(
   process.argv.slice(3).map((a) => a.replace(/^--/, "").split("=") as [string, string]),
@@ -40,20 +42,8 @@ const depts = (args.depts ?? "").split(",").filter(Boolean);
 const cacheFile = args.cache ?? "phones-cache.json";
 const cache: Record<string, Hit> = existsSync(cacheFile) ? JSON.parse(readFileSync(cacheFile, "utf8")) : {};
 
-const norm = (s: string) =>
-  s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
-
-/** Le résultat Google est-il bien la même entreprise ? (même code postal ou même ville, et un mot du nom en commun) */
-function matches(c: Company, place: { formattedAddress?: string; displayName?: { text?: string } }) {
-  const addr = norm(place.formattedAddress ?? "");
-  const sameTown = (c.postalCode && addr.includes(c.postalCode)) || (c.city && addr.includes(norm(c.city)));
-  const words = norm(c.name.replace(/\(.*?\)/g, ""))
-    .split(" ")
-    .filter((w) => w.length > 3 && !["societe", "france", "groupe", "entreprise", "services"].includes(w));
-  const placeName = norm(place.displayName?.text ?? "");
-  const sameName = words.length === 0 || words.some((w) => placeName.includes(w));
-  return Boolean(sameTown && sameName);
-}
+/** Le résultat Google est-il sûrement la même entreprise ? (même code postal et un mot distinctif du nom en commun) */
+const matches = (c: Company, place: { formattedAddress?: string; displayName?: { text?: string } }) => strictMatch(c, place);
 
 async function lookup(c: Company): Promise<Hit> {
   const res = await fetch("https://places.googleapis.com/v1/places:searchText", {
@@ -75,12 +65,13 @@ async function lookup(c: Company): Promise<Hit> {
   const data = (await res.json()) as {
     places?: { displayName?: { text?: string }; formattedAddress?: string; nationalPhoneNumber?: string; websiteUri?: string; googleMapsUri?: string }[];
   };
-  const place = (data.places ?? []).find((p) => p.nationalPhoneNumber && matches(c, p));
+  const place = (data.places ?? []).find((p) => validPhone(p.nationalPhoneNumber) && matches(c, p));
   return {
     phone: place?.nationalPhoneNumber ?? null,
     website: place?.websiteUri ?? null,
     mapsUrl: place?.googleMapsUri ?? null,
     checkedAt: new Date().toISOString(),
+    proof: place ? "google" : null,
   };
 }
 
@@ -102,7 +93,7 @@ async function main() {
   const known = [...data.companies, ...(args.from && existsSync(args.from) ? readAnnuaire(args.from) : [])];
   for (const c of known) {
     if (c.phoneCheckedAt && !cache[c.siren]) {
-      cache[c.siren] = { phone: c.phone ?? null, website: c.website ?? null, mapsUrl: c.mapsUrl ?? null, checkedAt: c.phoneCheckedAt };
+      cache[c.siren] = { phone: c.phone ?? null, website: c.website ?? null, mapsUrl: c.mapsUrl ?? null, checkedAt: c.phoneCheckedAt, proof: c.phoneProof ?? null };
     }
   }
   const rank = (c: Company) => (depts.length && c.department && depts.includes(c.department) ? 0 : 1);
@@ -132,7 +123,7 @@ async function main() {
 
   for (const c of data.companies) {
     const hit = cache[c.siren];
-    if (hit) Object.assign(c, { phone: hit.phone, website: hit.website, mapsUrl: hit.mapsUrl, phoneCheckedAt: hit.checkedAt });
+    if (hit) Object.assign(c, { phone: hit.phone, website: hit.website, mapsUrl: hit.mapsUrl, phoneCheckedAt: hit.checkedAt, phoneProof: hit.proof ?? null });
   }
   writeFileSync(file, JSON.stringify(data));
   const withPhone = data.companies.filter((c) => c.phone).length;

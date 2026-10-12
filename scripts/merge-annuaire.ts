@@ -30,7 +30,7 @@ const known = new Map<string, Row>();
 for (const c of old.companies) if (c.phoneCheckedAt) known.set(c.siren, c);
 for (const c of fresh.companies) {
   const k = known.get(c.siren);
-  if (k && !c.phoneCheckedAt) Object.assign(c, { phone: k.phone ?? null, website: k.website ?? null, mapsUrl: k.mapsUrl ?? null, phoneCheckedAt: k.phoneCheckedAt });
+  if (k && !c.phoneCheckedAt) Object.assign(c, { phone: k.phone ?? null, website: k.website ?? null, mapsUrl: k.mapsUrl ?? null, phoneCheckedAt: k.phoneCheckedAt, phoneProof: k.phoneProof ?? null });
 }
 // Anciennes entreprises absentes de l'export du jour : conservées, celles avec numéro en priorité
 const seen = new Set(fresh.companies.map(key));

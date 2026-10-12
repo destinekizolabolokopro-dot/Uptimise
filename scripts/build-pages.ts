@@ -34,7 +34,7 @@ if (process.argv.includes("--avec-telephones")) {
   copyFileSync(data, "docs/annuaire.min.json");
 } else {
   const raw = JSON.parse(readFileSync(data, "utf8"));
-  const hidden = ["phone", "website", "mapsUrl", "phoneCheckedAt"].map((f) => raw.fields.indexOf(f)).filter((i) => i >= 0);
+  const hidden = ["phone", "website", "mapsUrl", "phoneCheckedAt", "phoneProof"].map((f) => raw.fields.indexOf(f)).filter((i) => i >= 0);
   for (const r of raw.rows) {
     for (const i of hidden) if (i < r.length) r[i] = null;
     while (r.length && r[r.length - 1] === null) r.pop();

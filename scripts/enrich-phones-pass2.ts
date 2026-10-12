@@ -1,20 +1,22 @@
 // Deuxième recherche de numéros pour les entreprises que la première n'a pas trouvées.
-// Trois tentatives, dans l'ordre, une seule recherche Google par tentative et arrêt dès qu'un numéro sûr est trouvé :
+// Deux tentatives, dans l'ordre, une seule recherche Google par tentative et arrêt dès qu'un numéro sûr est trouvé :
 //   1. l'enseigne commerciale (lue gratuitement dans la base SIRENE) + ville
 //   2. pour un entrepreneur individuel : prénom et nom du dirigeant + ville
-//   3. l'adresse exacte, retenue seulement si une seule entreprise avec téléphone y répond
+// Un résultat n'est retenu que s'il est prouvé : même code postal et un mot distinctif de l'enseigne ou du nom.
+// (L'ancienne recherche par adresse seule est abandonnée : une autre entreprise peut être à la même adresse.)
 //
 // Usage :
 //   GOOGLE_MAPS_API_KEY=... npx tsx scripts/enrich-phones-pass2.ts annuaire.json --cache=phones-cache.json [--max=2000]
 // Le cache est complété (champ pass2) : une entreprise déjà retentée n'est jamais recherchée de nouveau.
 import { readFileSync, writeFileSync } from "node:fs";
+import { strictMatch, validPhone } from "../lib/phone-check";
 
 type Company = {
   siren: string; name: string; city: string | null; postalCode: string | null; address: string | null;
   dirigeant: string | null; activity: string | null; department: string | null;
-  phone?: string | null; website?: string | null; mapsUrl?: string | null; phoneCheckedAt?: string | null;
+  phone?: string | null; website?: string | null; mapsUrl?: string | null; phoneCheckedAt?: string | null; phoneProof?: string | null;
 };
-type Hit = { phone: string | null; website: string | null; mapsUrl: string | null; checkedAt: string; pass2?: string };
+type Hit = { phone: string | null; website: string | null; mapsUrl: string | null; checkedAt: string; pass2?: string; proof?: string | null };
 type Place = { displayName?: { text?: string }; formattedAddress?: string; nationalPhoneNumber?: string; websiteUri?: string; googleMapsUri?: string };
 
 const args = Object.fromEntries(process.argv.slice(3).map((a) => a.replace(/^--/, "").split("=") as [string, string]));
@@ -28,13 +30,6 @@ const max = Number(args.max ?? 2000);
 const cache: Record<string, Hit> = JSON.parse(readFileSync(args.cache, "utf8"));
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
-const STOP = new Set(["sarl", "sas", "sasu", "eurl", "societe", "france", "groupe", "entreprise", "services", "les", "des", "et", "de", "du", "la", "le", "ei"]);
-const words = (s: string) => norm(s.replace(/\(.*?\)/g, "")).split(" ").filter((w) => w.length > 2 && !STOP.has(w));
-const sameTown = (c: Company, p: Place) => {
-  const a = norm(p.formattedAddress ?? "");
-  return Boolean((c.postalCode && a.includes(c.postalCode)) || (c.city && a.includes(norm(c.city))));
-};
-
 async function places(textQuery: string): Promise<Place[]> {
   const res = await fetch("https://places.googleapis.com/v1/places:searchText", {
     method: "POST",
@@ -83,8 +78,7 @@ async function tryCompany(c: Company): Promise<{ hit: Place | null; how: string;
   // 1. Enseigne commerciale
   for (const ens of (await enseignes(c)).slice(0, 1)) {
     calls++;
-    const ws = words(ens);
-    const hit = (await places(`${ens} ${town}`)).find((p) => p.nationalPhoneNumber && sameTown(c, p) && ws.some((w) => norm(p.displayName?.text ?? "").includes(w)));
+    const hit = (await places(`${ens} ${town}`)).find((p) => validPhone(p.nationalPhoneNumber) && strictMatch(c, p, [c.name, ens]));
     if (hit) return { hit, how: "enseigne", calls };
   }
 
@@ -92,24 +86,10 @@ async function tryCompany(c: Company): Promise<{ hit: Place | null; how: string;
   const person = isSoleTrader(c) ? personName(c) : null;
   if (person) {
     calls++;
-    const surname = words(person).at(-1);
-    const hit = (await places(`${person} ${c.activity ?? ""} ${town}`)).find((p) =>
-      p.nationalPhoneNumber && sameTown(c, p) && surname && norm(p.displayName?.text ?? "").includes(surname));
+    const hit = (await places(`${person} ${c.activity ?? ""} ${town}`)).find((p) => validPhone(p.nationalPhoneNumber) && strictMatch(c, p, [person]));
     if (hit) return { hit, how: "dirigeant", calls };
   }
 
-  // 3. Adresse exacte : une seule entreprise avec téléphone à ce numéro de rue
-  const m = c.address?.match(/^\s*(\d+)\s*(?:bis|ter|[a-z])?\s+(.+?)\s+(\d{5})\b/i);
-  if (m && calls < 2) {
-    calls++;
-    const [, num, street, cp] = m;
-    const streetWords = words(street).slice(-1);
-    const found = (await places(c.address!)).filter((p) => {
-      const a = norm(p.formattedAddress ?? "");
-      return p.nationalPhoneNumber && a.includes(cp) && new RegExp(`(^| )${num}( |$)`).test(a) && streetWords.every((w) => a.includes(w));
-    });
-    if (found.length === 1) return { hit: found[0], how: "adresse", calls };
-  }
   return { hit: null, how: "", calls };
 }
 
@@ -127,7 +107,7 @@ async function main() {
       const r = await tryCompany(c);
       calls += r.calls;
       cache[c.siren] = r.hit
-        ? { phone: r.hit.nationalPhoneNumber ?? null, website: r.hit.websiteUri ?? null, mapsUrl: r.hit.googleMapsUri ?? null, checkedAt: new Date().toISOString(), pass2: r.how }
+        ? { phone: r.hit.nationalPhoneNumber ?? null, website: r.hit.websiteUri ?? null, mapsUrl: r.hit.googleMapsUri ?? null, checkedAt: new Date().toISOString(), pass2: r.how, proof: r.how }
         : { ...cache[c.siren], pass2: "aucun" };
       if (r.hit) { found++; by[r.how] = (by[r.how] ?? 0) + 1; }
     } catch (e) {
@@ -144,7 +124,7 @@ async function main() {
 
   for (const c of data.companies) {
     const hit = cache[c.siren];
-    if (hit) Object.assign(c, { phone: hit.phone, website: hit.website, mapsUrl: hit.mapsUrl, phoneCheckedAt: hit.checkedAt });
+    if (hit) Object.assign(c, { phone: hit.phone, website: hit.website, mapsUrl: hit.mapsUrl, phoneCheckedAt: hit.checkedAt, phoneProof: hit.proof ?? null });
   }
   writeFileSync(file, JSON.stringify(data));
   const withPhone = new Set(data.companies.filter((c) => c.phone).map((c) => c.siren)).size;

@@ -108,12 +108,27 @@ déjà connecté, le lien ouvre directement son espace.
   manager. Avec le bon code, il est validé automatiquement et rejoint le groupe dès que la page du manager (ou de
   l'admin) est ouverte. Sans code, le manager valide à la main. Il a besoin de l'accès « Contributeur ».
 
+**Profil de prospection** : à l'inscription, le commercial dit où et quoi il veut prospecter : départements,
+cibles, secteurs d'activité. Chaque choix affiche le nombre d'entreprises avec un numéro vérifié qui y
+correspondent ; un département sans numéro vérifié est grisé, et le profil n'est accepté que s'il donne au moins une
+entreprise à appeler. Sa file d'appels ne contient que ces entreprises (dans la limite de la zone de son groupe si le
+manager l'a fixée). Il change son profil quand il veut (« Mon profil ») ; son manager le voit dans sa fiche.
+
 Écran d'appel : un clic sur le résultat (touches 1 à 5) ou **« Suivante »** (touche N) pour passer une fiche qui ne
 convient pas ; elle repart pour les collègues. Un numéro déjà appelé, en cours d'appel ou suivi par quelqu'un
 n'est jamais proposé à un autre commercial, même s'il apparaît sous plusieurs entreprises.
 
 Ces règles sont appliquées par la base de l'artefact (et pas seulement par la page). Un commercial ne peut ni se
 valider lui-même, ni lire les codes d'équipe, ni lire l'activité de ses collègues.
+
+### Numéros vérifiés uniquement
+
+Un numéro n'est publié que s'il est prouvé (`scripts/verify-phones.ts`, règles dans `lib/phone-check.ts`) :
+numéro ordinaire (pas de 08), propre à une seule entreprise, jamais signalé « Mauvais numéro » par l'équipe, et
+venant d'une fiche Google au même code postal dont le nom (ou le domaine du site web) contient un mot distinctif
+de l'entreprise (pas « boulangerie », « restaurant », ni le nom de la ville). Les autres numéros sont retirés de
+l'annuaire et gardés dans `verification.json` (fichier privé de l'artefact) ; la mise à jour de nuit les contrôle
+sur Google Maps quand la clé `GOOGLE_MAPS_API_KEY` est configurée.
 
 ### Mise à jour de nuit
 
