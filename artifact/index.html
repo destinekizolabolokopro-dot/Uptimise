@@ -501,6 +501,16 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     ["commerce", "Commerces et boutiques", /commerce|vente|magasin|détail|gros/i],
   ];
   const secteurOf = (activity) => { for (const [k, , re] of SECTEURS) if (re.test(activity || "")) return k; return "autres"; };
+  // Taille d'entreprise (tranche d'effectif officielle) ; sans effectif déclaré = moins de 10
+  const TAILLES = [["xs", "Moins de 10 salariés"], ["s", "10 à 49"], ["m", "50 à 249"], ["l", "250 à 1 999"], ["xl", "2 000 et plus"]];
+  const tailleOf = (hc) => {
+    const n = hc ? Number((hc.match(/^[\d\s\u00a0\u202f]+/) || ["0"])[0].replace(/\D/g, "")) : 0;
+    return n < 10 ? "xs" : n < 50 ? "s" : n < 250 ? "m" : n < 2000 ? "l" : "xl";
+  };
+  const tailleLabel = (k) => (TAILLES.find((x) => x[0] === k) || [k, k])[1];
+  /** Distance approximative en km entre deux points (suffisant pour un rayon de prospection). */
+  const distKm = (a, b) => { const dx = (a.lon - b.lon) * 111.32 * Math.cos((a.lat + b.lat) / 2 * Math.PI / 180), dy = (a.lat - b.lat) * 110.57; return Math.sqrt(dx * dx + dy * dy); };
+  const RAYONS = [5, 10, 20, 30, 50, 80];
   const secteurLabel = (k) => (SECTEURS.find((x) => x[0] === k) || [k, "Autres activités"])[1];
   // Comment le numéro a été prouvé (seuls les numéros prouvés sont publiés)
   const PROOF = {
@@ -927,12 +937,15 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
           }
           return fromProfile.length ? fromProfile : fromGroup;
         };
-        const zones = pick((g && g.departements) || [], (pr && pr.zones) || []);
-        const cibles = pick((g && g.cibles) || [], (pr && pr.cibles) || []);
-        return { zones, cibles, secteurs: (pr && pr.secteurs) || [], group: g, profile: pr, conflict };
+        const p = pr ? fullPrefs(pr) : null;
+        const ville = p && p.mode === "ville" && p.ville;
+        const zones = pick((g && g.departements) || [], p && !ville ? p.zones : []);
+        const cibles = pick((g && g.cibles) || [], (p && p.cibles) || []);
+        return { zones, cibles, secteurs: (p && p.secteurs) || [], tailles: (p && p.tailles) || [],
+          around: ville ? { ...p.ville, km: p.rayon } : null, group: g, profile: p, conflict };
       }
     }
-    return { zones: st.zone ? [st.zone] : [], cibles: st.cibles, secteurs: [], group: null, profile: null };
+    return { zones: st.zone ? [st.zone] : [], cibles: st.cibles, secteurs: [], tailles: [], around: null, group: null, profile: null };
   }
   /** Commerciaux visibles dans le tableau de bord : tous pour l'admin, ceux de ses groupes pour un manager. */
   function visibleMembers() {
@@ -972,6 +985,8 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
       if (scope.zones.length && !scope.zones.includes(c.department)) continue;
       if (scope.cibles.length && !scope.cibles.includes(c.cible)) continue;
       if (scope.secteurs.length && !scope.secteurs.includes(c.sect)) continue;
+      if (scope.tailles.length && !scope.tailles.includes(c.size)) continue;
+      if (scope.around && !(c.lat != null && distKm(c, scope.around) <= scope.around.km)) continue;
       if (c.cible === "difficulte" && st.signaux.length && !st.signaux.includes(c.sig)) continue;
       if (c.siren === st.current || c.siren === st.nextUp) continue;
       const p = st.prospects.get(c.siren);
@@ -1143,9 +1158,11 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     $("call-scope").hidden = !fixed;
     if (fixed) $("call-scope").replaceChildren(
       ...(scope.profile ? ["Ton profil", scope.group ? ` (groupe ${scope.group.name})` : ""] : ["Groupe ", h("b", {}, scope.group.name)]), " : ",
-      h("b", {}, scope.zones.length ? scope.zones.map((z) => `${z} ${deptName(z)}`).join(", ") : "toute la France"), " · ",
+      h("b", {}, scope.around ? `${scope.around.nom} et ${scope.around.km} km autour` + (scope.zones.length ? ` (dans ${scope.zones.join(", ")})` : "")
+        : scope.zones.length ? scope.zones.map((z) => `${z} ${deptName(z)}`).join(", ") : "toute la France"), " · ",
       scope.cibles.length ? scope.cibles.map(cibleLabel).join(", ") : "toutes les cibles",
       scope.secteurs.length ? " · " + scope.secteurs.map(secteurLabel).join(", ") : "",
+      scope.tailles.length ? " · " + scope.tailles.map(tailleLabel).join(", ") : "",
       scope.conflict ? h("span", { class: "hint" }, " (une partie de ton profil sort de la zone du groupe : la zone du groupe s’applique)") : "",
       " · ", h("button", { class: "link", type: "button", onclick: openProfile }, "Modifier mon profil"));
     $("cibles-appel").replaceChildren(...CIBLES.map(([k, l]) => h("button", {
@@ -1286,63 +1303,110 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
   // ------------------------------------------------------------------ Profil du commercial : ce qu'il veut prospecter
   // Chaque choix affiche combien d'entreprises avec un numéro vérifié y correspondent : on ne peut pas choisir
   // un département vide, et le profil ne s'enregistre que s'il donne au moins une entreprise à appeler.
-  const emptyPrefs = () => ({ zones: [], cibles: [], secteurs: [] });
-  function prefsMatch(c, pr, skip) {
-    return (skip === "zones" || !pr.zones.length || pr.zones.includes(c.department))
-      && (skip === "cibles" || !pr.cibles.length || pr.cibles.includes(c.cible))
-      && (skip === "secteurs" || !pr.secteurs.length || pr.secteurs.includes(c.sect));
+  const emptyPrefs = () => ({ mode: "departements", zones: [], ville: null, rayon: 20, cibles: [], secteurs: [], tailles: [] });
+  const fullPrefs = (pr) => {
+    const p = { ...emptyPrefs(), ...(pr || {}) };
+    return { ...p, zones: [...p.zones], cibles: [...p.cibles], secteurs: [...p.secteurs], tailles: [...p.tailles] };
+  };
+  function prefsMatch(c, pr, skip, allowed) {
+    if (allowed && !allowed.includes(c.department)) return false;
+    if (skip !== "lieu") {
+      if (pr.mode === "ville") { if (!pr.ville || c.lat == null || distKm(c, pr.ville) > pr.rayon) return false; }
+      else if (pr.zones.length && !pr.zones.includes(c.department)) return false;
+    }
+    return (skip === "cibles" || !pr.cibles.length || pr.cibles.includes(c.cible))
+      && (skip === "secteurs" || !pr.secteurs.length || pr.secteurs.includes(c.sect))
+      && (skip === "tailles" || !pr.tailles.length || pr.tailles.includes(c.size));
   }
   /** Nombre d'entreprises (SIREN distincts) avec numéro vérifié, au total et par valeur d'un critère. */
-  function prefsCounts(pr, field, skip) {
+  function prefsCounts(pr, field, skip, allowed) {
     const sets = new Map(), all = new Set();
     for (const c of st.companies) {
       if (!c.phone) continue;
-      if (prefsMatch(c, pr)) all.add(c.siren);
-      if (field && prefsMatch(c, pr, skip)) { if (!sets.has(c[field])) sets.set(c[field], new Set()); sets.get(c[field]).add(c.siren); }
+      if (prefsMatch(c, pr, null, allowed)) all.add(c.siren);
+      if (field && prefsMatch(c, pr, skip, allowed)) { if (!sets.has(c[field])) sets.set(c[field], new Set()); sets.get(c[field]).add(c.siren); }
     }
-    const by = new Map([...sets].map(([k, v]) => [k, v.size]));
-    return { total: all.size, by };
+    return { total: all.size, by: new Map([...sets].map(([k, v]) => [k, v.size])) };
   }
-  const prefsText = (pr) => !pr ? "" : [
-    pr.zones.length ? pr.zones.map((z) => `${z} ${deptName(z)}`).join(", ") : "toute la France",
+  /** Pour le choix du rayon : nombre d'entreprises à moins de X km de la ville. */
+  function radiusCounts(pr, allowed) {
+    const best = new Map();
+    for (const c of st.companies) {
+      if (!c.phone || c.lat == null || !pr.ville || !prefsMatch(c, pr, "lieu", allowed)) continue;
+      const d = distKm(c, pr.ville);
+      if (!best.has(c.siren) || best.get(c.siren) > d) best.set(c.siren, d);
+    }
+    return new Map(RAYONS.map((r) => [r, [...best.values()].filter((d) => d <= r).length]));
+  }
+  const lieuText = (pr) => pr.mode === "ville" && pr.ville ? `${pr.ville.nom} et ${pr.rayon} km autour`
+    : pr.zones.length ? pr.zones.map((z) => `${z} ${deptName(z)}`).join(", ") : "toute la France";
+  const prefsText = (raw) => { if (!raw) return ""; const pr = fullPrefs(raw); return [
+    lieuText(pr),
     pr.cibles.length ? pr.cibles.map(cibleLabel).join(", ") : "toutes les cibles",
-    pr.secteurs.length ? pr.secteurs.map(secteurLabel).join(", ") : "tous les secteurs"].join(" · ");
+    pr.secteurs.length ? pr.secteurs.map(secteurLabel).join(", ") : "tous les secteurs",
+    pr.tailles.length ? pr.tailles.map(tailleLabel).join(", ") : "toutes les tailles"].join(" · "); };
 
   function profileEditor(initial, allowedZones) {
-    const pr = { ...emptyPrefs(), ...(initial || {}) };
-    pr.zones = [...pr.zones]; pr.cibles = [...pr.cibles]; pr.secteurs = [...pr.secteurs];
+    const pr = fullPrefs(initial);
+    const allowed = allowedZones || null;
+    let typed = "";
     const box = h("div", { class: "profile-ed" });
     const toggle = (list, k) => { const i = list.indexOf(k); if (i >= 0) list.splice(i, 1); else list.push(k); draw(); };
-    function draw() {
-      if (!st.companies.length) { box.replaceChildren(h("div", { class: "hint" }, "Chargement de l’annuaire…")); return; }
-      const byDept = prefsCounts(pr, "department", "zones").by, byCible = prefsCounts(pr, "cible", "cibles").by, bySect = prefsCounts(pr, "sect", "secteurs").by;
-      const total = prefsCounts(pr).total;
-      const depts = DEPTS.filter(([d]) => !allowedZones || allowedZones.includes(d));
+    const chipsOf = (list, values, by, title) => h("div", { class: "chips" }, values.map(([k, l]) => h("button", { class: "chip small", type: "button", title: title && title[k],
+      "aria-pressed": String(list.includes(k)), onclick: () => toggle(list, k) }, l, h("span", { class: "count" }, fmtN(by.get(k) || 0)))));
+    function lieu() {
+      const modes = h("div", { class: "seg" }, [["departements", "Par départements"], ["ville", "Autour d’une ville"]].map(([k, l]) =>
+        h("button", { class: "chip small", type: "button", "aria-pressed": String(pr.mode === k), onclick: () => { pr.mode = k; draw(); } }, l)));
+      if (pr.mode === "ville") {
+        const list = h("datalist", { id: "pf-villes" }, [...(st.towns || new Map()).keys()].filter((k) => !allowed || allowed.includes(st.towns.get(k).dept))
+          .sort((a, b) => a.localeCompare(b, "fr")).map((k) => h("option", { value: k })));
+        const input = h("input", { id: "pf-ville", class: "input", type: "text", list: "pf-villes", autocomplete: "off", placeholder: "Tape une ville, ex. Lyon", value: pr.ville ? `${pr.ville.nom} (${pr.ville.cp})` : typed,
+          onchange: (e) => { const t = st.towns && st.towns.get(e.target.value); typed = t ? "" : e.target.value; pr.ville = t ? { nom: t.nom, cp: t.cp, lat: t.lat, lon: t.lon } : null; setTimeout(draw); } });
+        const rc = radiusCounts(pr, allowed);
+        const rayon = h("select", { id: "pf-rayon", class: "input", "aria-label": "Rayon", onchange: (e) => { pr.rayon = Number(e.target.value); draw(); } },
+          RAYONS.map((r) => h("option", { value: r, selected: pr.rayon === r }, pr.ville ? `${r} km (${fmtN(rc.get(r))})` : `${r} km`)));
+        return [modes, h("div", { class: "two" }, input, rayon), list,
+          typed && !pr.ville ? h("span", { class: "alert" }, "Ville inconnue dans l’annuaire : choisis-la dans la liste proposée.") : null,
+          h("span", { class: "hint" }, pr.ville ? "Entre parenthèses : entreprises avec un numéro vérifié dans ce rayon, pour tes autres choix." : "Choisis une ville dans la liste proposée.")];
+      }
+      const byDept = prefsCounts(pr, "department", "lieu", allowed).by;
+      const depts = DEPTS.filter(([d]) => !allowed || allowed.includes(d));
       const sel = h("select", { class: "input", id: "pf-dept", "aria-label": "Ajouter un département",
         onchange: (e) => { if (e.target.value && !pr.zones.includes(e.target.value)) pr.zones.push(e.target.value); draw(); } },
         h("option", { value: "" }, pr.zones.length ? "+ Ajouter un département" : "Choisis un département"),
         depts.filter(([d]) => !pr.zones.includes(d)).map(([d, n]) => h("option", { value: d, disabled: !byDept.get(d) }, `${d} · ${n} (${fmtN(byDept.get(d) || 0)})`)));
+      return [modes, h("div", { class: "sel-zones" },
+        pr.zones.map((z) => h("button", { class: "chip small", type: "button", "aria-pressed": "true", title: "Retirer", onclick: () => toggle(pr.zones, z) }, `${z} ${deptName(z)} ×`)), sel),
+        h("span", { class: "hint" }, "Entre parenthèses : entreprises avec un numéro vérifié pour tes autres choix. Un département grisé n’en a aucune.")];
+    }
+    let drawing = false;
+    function draw() {
+      if (drawing) return; // un champ retiré pendant le rendu déclenche « change » : on ne redessine pas en double
+      drawing = true;
+      try { redraw(); } finally { drawing = false; }
+    }
+    function redraw() {
+      if (!st.companies.length) { box.replaceChildren(h("div", { class: "hint" }, "Chargement de l’annuaire…")); return; }
+      const total = prefsCounts(pr, null, null, allowed).total;
+      const lieuOk = pr.mode === "ville" ? !!pr.ville : pr.zones.length > 0;
       box.replaceChildren(
         h("div", { class: "field" }, h("span", { class: "label" }, "Où veux-tu prospecter ?"),
-          allowedZones ? h("span", { class: "hint" }, `Zone de ton groupe : ${allowedZones.map((z) => `${z} ${deptName(z)}`).join(", ")}.`) : null,
-          h("div", { class: "sel-zones" },
-            pr.zones.map((z) => h("button", { class: "chip small", type: "button", "aria-pressed": "true", title: "Retirer", onclick: () => toggle(pr.zones, z) }, `${z} ${deptName(z)} ×`)),
-            sel),
-          h("span", { class: "hint" }, "Entre parenthèses : entreprises avec un numéro vérifié pour tes cibles et secteurs.")),
-        h("div", { class: "field" }, h("span", { class: "label" }, "Quelles cibles ? (aucune = toutes)"),
-          h("div", { class: "chips" }, CIBLES.map(([k, l]) => h("button", { class: "chip small", type: "button", title: CIBLE_HINT[k], "aria-pressed": String(pr.cibles.includes(k)), onclick: () => toggle(pr.cibles, k) },
-            l, h("span", { class: "count" }, fmtN(byCible.get(k) || 0)))))),
-        h("div", { class: "field" }, h("span", { class: "label" }, "Quels secteurs ? (aucun = tous)"),
-          h("div", { class: "chips" }, SECTEURS.map(([k, l]) => h("button", { class: "chip small", type: "button", "aria-pressed": String(pr.secteurs.includes(k)), onclick: () => toggle(pr.secteurs, k) },
-            l, h("span", { class: "count" }, fmtN(bySect.get(k) || 0)))))),
-        h("div", { class: "match " + (pr.zones.length && total ? "ok" : "bad"), role: "status" },
-          !pr.zones.length ? "Choisis au moins un département."
+          allowed ? h("span", { class: "hint" }, `Zone de ton groupe : ${allowed.map((z) => `${z} ${deptName(z)}`).join(", ")}.`) : null, ...lieu()),
+        h("div", { class: "field" }, h("span", { class: "label" }, "Quelles cibles ? (aucune = toutes)"), chipsOf(pr.cibles, CIBLES, prefsCounts(pr, "cible", "cibles", allowed).by, CIBLE_HINT)),
+        h("div", { class: "field" }, h("span", { class: "label" }, "Quelle taille d’entreprise ? (aucune = toutes)"), chipsOf(pr.tailles, TAILLES, prefsCounts(pr, "size", "tailles", allowed).by)),
+        h("div", { class: "field" }, h("span", { class: "label" }, "Quels secteurs ? (aucun = tous)"), chipsOf(pr.secteurs, SECTEURS, prefsCounts(pr, "sect", "secteurs", allowed).by)),
+        h("div", { class: "match " + (lieuOk && total ? "ok" : "bad"), role: "status" },
+          !lieuOk ? (pr.mode === "ville" ? "Choisis une ville." : "Choisis au moins un département.")
             : total ? `${fmtN(total)} entreprise${total > 1 ? "s" : ""} avec un numéro vérifié correspond${total > 1 ? "ent" : ""} à ton choix.`
-            : "Aucune entreprise avec un numéro vérifié ne correspond : ajoute un département, ou retire une cible ou un secteur."));
+            : "Aucune entreprise avec un numéro vérifié ne correspond : élargis le lieu ou le rayon, ou retire une cible, une taille ou un secteur."));
     }
     box._draw = draw;
     draw();
-    return { el: box, get: () => ({ zones: [...pr.zones], cibles: [...pr.cibles], secteurs: [...pr.secteurs] }), valid: () => pr.zones.length > 0 && prefsCounts(pr).total > 0 };
+    return {
+      el: box,
+      get: () => ({ mode: pr.mode, zones: pr.mode === "ville" ? [] : [...pr.zones], ville: pr.mode === "ville" ? pr.ville : null, rayon: pr.rayon, cibles: [...pr.cibles], secteurs: [...pr.secteurs], tailles: [...pr.tailles] }),
+      valid: () => (pr.mode === "ville" ? !!pr.ville : pr.zones.length > 0) && prefsCounts(pr, null, null, allowed).total > 0,
+    };
   }
 
   async function saveProfile(prefs) {
@@ -1755,7 +1819,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
         return h("div", { class: "signup" },
           h("div", { class: "who-s" }, h("strong", {}, `${s.firstName} ${s.lastName}`),
             h("span", { class: "hint" }, [s.role === "chef" ? "Demande : manager" : "Demande : commercial", s.phone, s.createdAt ? "le " + new Date(s.createdAt).toLocaleDateString("fr-FR") : null].filter(Boolean).join(" · ")),
-            s.prefs ? h("span", { class: "hint" }, `Veut prospecter : ${prefsText({ ...emptyPrefs(), ...s.prefs })}`) : null,
+            s.prefs ? h("span", { class: "hint" }, `Veut prospecter : ${prefsText(s.prefs)}`) : null,
             s.code ? h("span", { class: "hint" }, `Code : ${s.code}${[...st.codes.values()].includes(s.code) ? "" : " (inconnu)"}`) : null,
             s.message ? h("span", { class: "hint" }, `« ${s.message} »`) : null),
           h("div", { class: "acts" }, sel, groupSel,
@@ -1952,12 +2016,13 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
         barChart({ values: perHour, labels: hours.map((x) => x + " h"), title: "Appels par heure · période choisie", unit: "appels", height: 150 })),
       (() => {
         const raw = (st.profilesAll && st.profilesAll.get(uid)) || (st.signups.get(uid) || {}).prefs;
-        const pr = raw ? { ...emptyPrefs(), ...raw } : null;
+        const pr = raw ? fullPrefs(raw) : null;
         const kvp = h("dl", { class: "kv" });
         if (pr) kvp.append(
-          h("dt", {}, "Départements"), h("dd", {}, pr.zones.length ? pr.zones.map((z) => `${z} ${deptName(z)}`).join(", ") : "toute la France"),
+          h("dt", {}, "Lieu"), h("dd", {}, lieuText(pr)),
           h("dt", {}, "Cibles"), h("dd", {}, pr.cibles.length ? pr.cibles.map(cibleLabel).join(", ") : "toutes"),
           h("dt", {}, "Secteurs"), h("dd", {}, pr.secteurs.length ? pr.secteurs.map(secteurLabel).join(", ") : "tous"),
+          h("dt", {}, "Taille"), h("dd", {}, pr.tailles.length ? pr.tailles.map(tailleLabel).join(", ") : "toutes"),
           h("dt", {}, "Entreprises"), h("dd", {}, `${fmtN(prefsCounts(pr).total)} avec un numéro vérifié`));
         return h("section", { class: "box" }, h("h4", {}, "Ce qu’il veut prospecter"),
           pr ? kvp : h("p", { class: "hint", style: "margin:0" }, "Pas encore renseigné : il le remplira à sa prochaine connexion."),
@@ -2261,9 +2326,16 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
         ...c,
         sig: c.cible === "difficulte" ? (c.signal && c.signal.includes("BODACC") ? "procedure" : "pertes") : null,
         sect: secteurOf(c.activity),
+        size: tailleOf(c.headcount),
         _hay: norm([c.name, c.activity, c.city, c.postalCode, c.dirigeant, c.siren].join(" ")),
       }));
       for (const c of st.companies) if (!companyBySiren.has(c.siren)) companyBySiren.set(c.siren, c);
+      const towns = new Map();
+      for (const c of st.companies) if (c.lat != null && c.city && c.postalCode) {
+        const k = `${c.city} (${c.postalCode})`;
+        if (!towns.has(k)) towns.set(k, { nom: c.city, cp: c.postalCode, lat: c.lat, lon: c.lon, dept: c.department });
+      }
+      st.towns = towns;
       document.querySelectorAll(".profile-ed").forEach((el) => el._draw && el._draw());
       $("banner").textContent = `Données officielles et publiques · SIRENE, comptes annuels et BODACC · instantané du ${new Date(data.generatedAt).toLocaleDateString("fr-FR")}`;
     } catch (e) {

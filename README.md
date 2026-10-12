@@ -108,8 +108,9 @@ déjà connecté, le lien ouvre directement son espace.
   manager. Avec le bon code, il est validé automatiquement et rejoint le groupe dès que la page du manager (ou de
   l'admin) est ouverte. Sans code, le manager valide à la main. Il a besoin de l'accès « Contributeur ».
 
-**Profil de prospection** : à l'inscription, le commercial dit où et quoi il veut prospecter : départements,
-cibles, secteurs d'activité. Chaque choix affiche le nombre d'entreprises avec un numéro vérifié qui y
+**Profil de prospection** : à l'inscription, le commercial dit où et quoi il veut prospecter : départements
+ou ville + rayon (5 à 80 km), cibles, taille d'entreprise, secteurs d'activité. La position de chaque entreprise
+(centre de sa commune) est ajoutée par `scripts/geo-annuaire.ts`. Chaque choix affiche le nombre d'entreprises avec un numéro vérifié qui y
 correspondent ; un département sans numéro vérifié est grisé, et le profil n'est accepté que s'il donne au moins une
 entreprise à appeler. Sa file d'appels ne contient que ces entreprises (dans la limite de la zone de son groupe si le
 manager l'a fixée). Il change son profil quand il veut (« Mon profil ») ; son manager le voit dans sa fiche.
