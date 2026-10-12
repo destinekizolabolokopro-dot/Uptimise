@@ -227,6 +227,11 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
 .outcome kbd { font: 12px var(--font-body); color: var(--muted); border: 1px solid var(--chip-line); border-radius: 6px; padding: 1px 7px; }
 .outcome.win { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); }
 .outcome.wide { grid-column: 1 / -1; }
+.team-code { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; border-radius: 12px; background: var(--panel); border: 1px dashed var(--brand); }
+.team-code .l { font-size: 13px; color: var(--muted); }
+.team-code .code { font: 600 22px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .12em; color: var(--brand); }
+.code-input { text-transform: uppercase; letter-spacing: .15em; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.outcome.next-btn { width: 100%; background: var(--panel); border-style: dashed; color: var(--ink); }
 .outcome:disabled { opacity: .5; cursor: progress; }
 .when { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 14px; border-radius: 14px; background: var(--panel); }
 .when .input { height: 40px; width: auto; }
@@ -497,7 +502,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     current: null, nextUp: null, reserving: false, prefetching: false, shownAt: 0, skipped: new Set(), handled: new Set(), rappel: false, autoStart: true,
     role: null, isOwner: false, roster: new Map(), signups: new Map(), presence: new Map(), config: null, act: null,
     period: "jour", teamDays: null, memberOpen: null, connecting: true,
-    screen: "accueil", space: null, gateDoor: null, doorMsg: null, groups: new Map(), noteOpen: false, groupEdit: null,
+    screen: "accueil", space: null, gateDoor: null, doorMsg: null, groups: new Map(), codes: new Map(), noteOpen: false, groupEdit: null,
     prospects: new Map(), // siren -> doc data
     db: null, user: null, meId: null, canWrite: true,
     open: null, notesUnsub: null, notes: [], profiles: {},
@@ -905,10 +910,28 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
   const managedGroups = () => [...st.groups.entries()].filter(([, g]) => st.role === "admin" || g.managerId === st.meId);
 
   /** File d'appels : rappels arrivés à échéance d'abord, puis entreprises jamais appelées. */
+  /** Numéros déjà composés, en cours d'appel ou suivis par quelqu'un : une autre fiche avec le même numéro est écartée. */
+  const phoneKey = (s) => String(s || "").replace(/\D/g, "").slice(-9);
+  function takenPhones() {
+    const taken = new Map();
+    for (const [siren, p] of st.prospects) {
+      const k = phoneKey(p.phone);
+      if (!k) continue;
+      const active = p.lockedUntil && Date.parse(p.lockedUntil) > Date.now();
+      if (p.attempts || p.lastCallAt || CLOSED.includes(p.status) || active || (p.name && !p.reservedOnly)) taken.set(k, siren);
+    }
+    for (const s of [st.current, st.nextUp]) {
+      const c = s && (st.prospects.get(s) || companyBySiren.get(s));
+      if (c && phoneKey(c.phone)) taken.set(phoneKey(c.phone), s);
+    }
+    return taken;
+  }
+
   function queue() {
     const t = today();
     const due = [], fresh = [], seen = new Set();
     const scope = callScope();
+    const taken = takenPhones(), inQueue = new Set();
     for (const c of st.companies) {
       if (seen.has(c.siren)) continue; seen.add(c.siren);
       if (scope.zones.length && !scope.zones.includes(c.department)) continue;
@@ -917,6 +940,10 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
       if (c.siren === st.current || c.siren === st.nextUp) continue;
       const p = st.prospects.get(c.siren);
       if (!((p && p.phone) || c.phone)) continue;
+      // Même numéro qu'une autre entreprise déjà appelée ou en cours : on ne rappelle pas un collègue (ni soi-même)
+      const k = phoneKey((p && p.phone) || c.phone);
+      if ((taken.has(k) && taken.get(k) !== c.siren) || inQueue.has(k)) continue;
+      inQueue.add(k);
       if (st.skipped.has(c.siren) || st.handled.has(c.siren) || lockedByOther(p)) continue;
       if (!p || !p.name || p.reservedOnly) { fresh.push(c); continue; }
       if (CLOSED.includes(p.status)) continue;
@@ -939,6 +966,8 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
       if ((p.assignedTo && p.assignedTo !== st.meId) || CLOSED.includes(p.status) || (p.nextAction && p.nextAction > today())) return false;
     }
     if (lockedByOther(p)) return false;
+    const k = phoneKey((p && p.phone) || c.phone), taken = takenPhones();
+    if (k && taken.has(k) && taken.get(k) !== c.siren) return false;
     const lock = { lockedBy: st.meId, lockedUntil: new Date(Date.now() + LOCK_MS).toISOString(), assignedTo: st.meId, updatedAt: now() };
     const body = p && p.name ? { ...p, ...lock } : {
       siren: c.siren, name: c.name, activity: c.activity || null, city: c.city || null, postalCode: c.postalCode || null,
@@ -1137,7 +1166,9 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     const side = h("div", { class: "side" },
       st.saveError ? h("div", { class: "alert" }, "Un résultat n’a pas pu être enregistré. Vérifiez votre connexion, puis rechargez la page.") : null,
       h("div", { class: "say-label" }, "Résultat de l’appel"),
-      h("div", { class: "outcomes" }, btn("pas_reponse", "wide"), btn("rappeler"), btn("rdv"), btn("perdu"), btn("mauvais")));
+      h("div", { class: "outcomes" }, btn("pas_reponse", "wide"), btn("rappeler"), btn("rdv"), btn("perdu"), btn("mauvais")),
+      h("button", { id: "btn-suivante", class: "outcome wide next-btn", type: "button", title: "Cette fiche ne convient pas : elle repart pour les collègues", onclick: skipCompany },
+        "Suivante →", h("kbd", {}, "N")));
     if (st.rappel) {
       const kind = st.rappel;
       const pick = (label, d) => h("button", { class: "chip small", type: "button", onclick: () => logOutcome(kind, d) }, label);
@@ -1154,10 +1185,15 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
         ? h("input", { id: "call-note", class: "input", type: "text", maxlength: "300", "aria-label": "Note", placeholder: "Note : standardiste, rappeler après 14 h…", value: st.draftNote || "", oninput: (e) => { st.draftNote = e.target.value; } })
         : h("button", { class: "link skip", type: "button", onclick: () => { st.noteOpen = true; renderCall(); const i = $("call-note"); if (i) i.focus(); } }, "+ Ajouter une note"),
       next ? h("div", { class: "next-up" }, "Ensuite : ", h("b", {}, next.name), next.city ? ` · ${next.city}` : "") : "",
-      h("button", { class: "link skip", type: "button", onclick: () => { const s = st.current; st.skipped.add(s); st.current = null; release(s); nextCompany(); } }, "Passer sans appeler"),
       simple ? "" : h("button", { class: "link skip", type: "button", onclick: () => openDrawer(p.siren) }, "Ouvrir la fiche complète"));
 
     box.replaceChildren(h("div", { class: "call" }, card, side));
+  }
+
+  /** Bouton « Suivante » : la fiche ne convient pas, on passe sans appeler et elle est rendue aux collègues. */
+  function skipCompany() {
+    const s = st.current; if (!s) return;
+    st.skipped.add(s); st.current = null; release(s); nextCompany();
   }
 
   // Chronomètre de la fiche affichée : seul ce texte est mis à jour, pas tout l'écran.
@@ -1189,6 +1225,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     if (!st.current) return;
     if (st.rappel === "rappeler" && ["1", "2", "3"].includes(e.key)) { e.preventDefault(); logOutcome("rappeler", plusDays({ 1: 1, 2: 3, 3: 7 }[e.key])); return; }
     if (e.key === "Escape" && st.rappel) { st.rappel = false; renderCall(); return; }
+    if (!st.rappel && (e.key === "n" || e.key === "N" || e.key === "ArrowRight")) { e.preventDefault(); skipCompany(); return; }
     const kind = Object.keys(OUTCOMES).find((k) => OUTCOMES[k].key === e.key);
     if (kind) { e.preventDefault(); (kind === "rappeler" || kind === "rdv") ? (st.rappel = kind, renderCall()) : logOutcome(kind); }
   });
@@ -1220,14 +1257,16 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     if (m && (m.status === "refused" || m.status === "disabled")) {
       g.replaceChildren(h("div", { class: "eyebrow" }, "Accès"),
         h("h1", {}, m.status === "refused" ? "Inscription " : "Accès ", h("span", { class: "serif", style: "display:inline" }, m.status === "refused" ? "refusée." : "suspendu.")),
-        h("p", { class: "lede" }, "Rapprochez-vous de votre chef d’équipe si vous pensez qu’il s’agit d’une erreur."));
+        h("p", { class: "lede" }, "Rapproche-toi de ton manager si tu penses qu’il s’agit d’une erreur."));
       return;
     }
     if (sign && !m) {
       g.replaceChildren(h("div", { class: "eyebrow" }, "Inscription envoyée"),
         h("h1", {}, "En attente ", h("span", { class: "serif", style: "display:inline" }, "de validation.")),
         h("p", { class: "lede" }, h("span", { class: "pending-dot", "aria-hidden": "true" }),
-          `Merci ${sign.firstName}. Votre chef d’équipe doit valider votre inscription. Cette page s’ouvrira toute seule dès que ce sera fait.`),
+          sign.code
+            ? `Merci ${sign.firstName}. Code d’équipe ${sign.code} envoyé : ton accès s’ouvre tout seul dès que ton manager (ou l’admin) a Uptimise ouvert. Cette page s’ouvrira toute seule.`
+            : `Merci ${sign.firstName}. ${sign.role === "chef" ? "L’admin" : "Ton manager"} doit valider ton inscription. Cette page s’ouvrira toute seule dès que ce sera fait.`),
         h("button", { class: "link", type: "button", onclick: () => { st.editSignup = true; renderSignupForm(sign); } }, "Modifier mon inscription"));
       if (st.editSignup) renderSignupForm(sign);
       return;
@@ -1241,15 +1280,20 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     const err = h("div", { class: "alert", role: "alert", hidden: true });
     const roleBtns = h("div", { class: "seg", role: "group", "aria-label": "Rôle" });
     const drawRoles = () => roleBtns.replaceChildren(...[["commercial", "Commercial"], ["chef", "Manager"]].map(([k, l]) =>
-      h("button", { class: "chip small", type: "button", "aria-pressed": String(wanted === k), onclick: () => { wanted = k; drawRoles(); } }, l)));
+      h("button", { class: "chip small", type: "button", "aria-pressed": String(wanted === k), onclick: () => { wanted = k; drawRoles(); showCode(); } }, l)));
     drawRoles();
     const field = (id, label, type, value, extra) => h("div", { class: "field" }, h("label", { class: "label", for: id }, label),
       h("input", { id, class: "input", type, value: value || "", required: true, ...extra }));
     const submit = h("button", { class: "btn", type: "submit" }, prev ? "Mettre à jour" : "Envoyer mon inscription");
+    const codeField = h("div", { class: "field" }, h("label", { class: "label", for: "su-code" }, "Code d’équipe (donné par ton manager)"),
+      h("input", { id: "su-code", class: "input code-input", type: "text", maxlength: "8", autocomplete: "off", value: (prev && prev.code) || "", placeholder: "Ex. : K7M2QX",
+        oninput: (e) => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""); } }),
+      h("span", { class: "hint" }, "Avec le bon code, ton accès est validé tout seul et tu rejoins directement le groupe de ton manager."));
+    const showCode = () => { codeField.hidden = wanted !== "commercial"; };
     g.replaceChildren(
       h("div", { class: "eyebrow" }, "Espace commerciaux"),
       h("h1", {}, "Inscription, ", h("span", { class: "serif", style: "display:inline" }, "une minute.")),
-      h("p", { class: "lede", style: "max-width:none" }, "Votre compte claude.ai sert d’identifiant. Remplissez ces informations : votre chef d’équipe valide ensuite votre accès."),
+      h("p", { class: "lede", style: "max-width:none" }, "Ton compte claude.ai sert d’identifiant. Commercial : entre le code d’équipe donné par ton manager. Manager : l’admin valide ton accès et ton code d’équipe est créé tout seul."),
       h("form", { class: "form", onsubmit: async (e) => {
         e.preventDefault();
         const val = (id) => $(id).value.trim();
@@ -1258,10 +1302,11 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
         try {
           await st.db.doc("signups/" + st.meId).set({
             firstName: val("su-first").slice(0, 60), lastName: val("su-last").slice(0, 60), phone: val("su-phone").slice(0, 30),
+            email: val("su-email").slice(0, 120), code: wanted === "commercial" ? val("su-code").toUpperCase().slice(0, 8) : "",
             role: wanted, message: val("su-msg").slice(0, 300), createdAt: (prev && prev.createdAt) || now(), updatedAt: now(),
           });
           st.editSignup = false;
-          st.signups.set(st.meId, { firstName: val("su-first"), role: wanted });
+          st.signups.set(st.meId, { firstName: val("su-first"), role: wanted, code: wanted === "commercial" ? val("su-code").toUpperCase() : "" });
           render();
         } catch (e2) {
           submit.disabled = false; err.hidden = false;
@@ -1271,22 +1316,79 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
         }
       } },
         h("div", { class: "two" }, field("su-first", "Prénom", "text", prev && prev.firstName, { autocomplete: "given-name" }), field("su-last", "Nom", "text", prev && prev.lastName, { autocomplete: "family-name" })),
-        field("su-phone", "Téléphone", "tel", prev && prev.phone, { autocomplete: "tel", required: false }),
+        h("div", { class: "two" }, field("su-phone", "Téléphone", "tel", prev && prev.phone, { autocomplete: "tel", required: false }), field("su-email", "E-mail", "email", prev && prev.email, { autocomplete: "email", required: false })),
         h("div", { class: "field" }, h("span", { class: "label" }, "Je suis"), roleBtns),
-        h("div", { class: "field" }, h("label", { class: "label", for: "su-msg" }, "Message pour le chef (facultatif)"),
+        codeField,
+        h("div", { class: "field" }, h("label", { class: "label", for: "su-msg" }, "Message (facultatif)"),
           h("input", { id: "su-msg", class: "input", type: "text", value: (prev && prev.message) || "", placeholder: "Ex. : équipe Lyon, arrivé lundi" })),
         err, submit));
+    showCode();
   }
 
   async function approve(uid, role, groupId) {
     const s = st.signups.get(uid);
     if (!s) return;
     try {
+      // Un manager validé reçoit tout de suite son groupe et son code d'équipe
+      if (role === "chef" && !groupId) groupId = await createGroup({ name: `Équipe ${s.firstName}`.slice(0, 60), managerId: uid, departements: [], cibles: [] });
       await st.db.doc("roster/" + uid).set({
-        firstName: s.firstName, lastName: s.lastName, phone: s.phone || null, role: role || "commercial", status: "active",
+        firstName: s.firstName, lastName: s.lastName, phone: s.phone || null, email: s.email || null, role: role || "commercial", status: "active",
         approvedBy: st.meId, approvedAt: now(), createdAt: s.createdAt || now(), goal: null, groupId: groupId || null,
+        joinedWithCode: s.code && groupId && st.codes.get(groupId) === s.code ? s.code : null,
       });
     } catch (e) { managerWriteFailed(e); }
+  }
+
+  // ------------------------------------------------------------------ Codes d'équipe
+  // Chaque groupe a un code à 6 caractères (collection groupcodes, lisible par l'admin et les managers seulement).
+  // Un commercial qui s'inscrit avec ce code est validé automatiquement par la page de son manager ou de l'admin.
+  const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  function newCode() {
+    const used = new Set(st.codes.values());
+    for (;;) {
+      const a = crypto.getRandomValues(new Uint32Array(6));
+      const code = [...a].map((n) => CODE_CHARS[n % CODE_CHARS.length]).join("");
+      if (!used.has(code)) return code;
+    }
+  }
+  async function createGroup(body) {
+    const ref = await st.db.collection("groups").add({ ...body, createdAt: now(), createdBy: st.meId, updatedAt: now() });
+    st.groups.set(ref.id, { ...body });
+    const code = newCode();
+    st.codes.set(ref.id, code);
+    await st.db.doc("groupcodes/" + ref.id).set({ code, groupId: ref.id, createdAt: now() });
+    return ref.id;
+  }
+  async function renewCode(id) {
+    const code = newCode();
+    try { await st.db.doc("groupcodes/" + id).set({ code, groupId: id, createdAt: now() }); }
+    catch (e) { managerWriteFailed(e); }
+  }
+  /** Groupes sans code (créés avant cette version) : un code est créé ; manager sans groupe : son groupe est créé. */
+  let ensuring = false;
+  async function ensureCodes() {
+    if (ensuring || !st.codesLoaded || !isManager() || st.space === "commercial") return;
+    ensuring = true;
+    try {
+      for (const [id] of managedGroups()) if (!st.codes.has(id)) await renewCode(id);
+      if (st.role === "chef" && !managedGroups().length) {
+        const m = st.roster.get(st.meId) || {};
+        const id = await createGroup({ name: `Équipe ${m.firstName || "manager"}`.slice(0, 60), managerId: st.meId, departements: [], cibles: [] });
+        if (!m.groupId) await st.db.doc("roster/" + st.meId).update({ groupId: id });
+      }
+    } catch (e) { console.warn(e); }
+    ensuring = false;
+  }
+  /** Inscriptions avec un code valide : validées automatiquement dans le bon groupe. */
+  const autoApproved = new Set();
+  function autoApprove() {
+    if (!isManager() || !st.codesLoaded) return;
+    const byCode = new Map(managedGroups().map(([id]) => [st.codes.get(id), id]).filter(([c]) => c));
+    for (const [uid, s] of st.signups) {
+      if (st.roster.has(uid) || autoApproved.has(uid) || s.role !== "commercial" || !s.code || !byCode.has(s.code)) continue;
+      autoApproved.add(uid);
+      approve(uid, "commercial", byCode.get(s.code));
+    }
   }
   async function refuse(uid) {
     const s = st.signups.get(uid);
@@ -1485,7 +1587,8 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
         const groupSel = groupSelect(managedGroups().length === 1 ? managedGroups()[0][0] : "", "Groupe");
         return h("div", { class: "signup" },
           h("div", { class: "who-s" }, h("strong", {}, `${s.firstName} ${s.lastName}`),
-            h("span", { class: "hint" }, [s.role === "chef" ? "Demande : chef d’équipe" : "Demande : commercial", s.phone, s.createdAt ? "le " + new Date(s.createdAt).toLocaleDateString("fr-FR") : null].filter(Boolean).join(" · ")),
+            h("span", { class: "hint" }, [s.role === "chef" ? "Demande : manager" : "Demande : commercial", s.phone, s.createdAt ? "le " + new Date(s.createdAt).toLocaleDateString("fr-FR") : null].filter(Boolean).join(" · ")),
+            s.code ? h("span", { class: "hint" }, `Code : ${s.code}${[...st.codes.values()].includes(s.code) ? "" : " (inconnu)"}`) : null,
             s.message ? h("span", { class: "hint" }, `« ${s.message} »`) : null),
           h("div", { class: "acts" }, sel, groupSel,
             h("button", { class: "btn", type: "button", onclick: () => approve(uid, sel.value, groupSel.value) }, "Accepter"),
@@ -1564,9 +1667,13 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     out.push(h("div", { class: "section-title" }, h("h3", {}, isAdmin ? "Groupes" : "Mes groupes"),
       isAdmin && !st.groupEdit ? h("button", { class: "btn", type: "button", onclick: () => { st.groupEdit = "new"; renderTeam(); } }, "Nouveau groupe") : null));
     if (st.groupEdit) out.push(groupForm(st.groupEdit));
-    const count = (id) => [...st.roster.values()].filter((m) => m.groupId === id && m.status === "active").length;
+    const count = (id) => [...st.roster.values()].filter((m) => m.groupId === id && m.status === "active" && m.role === "commercial").length;
     out.push(list.length ? h("div", { class: "groups" }, list.map(([id, g]) => h("div", { class: "group" },
       h("h4", {}, g.name),
+      st.codes.get(id) ? h("div", { class: "team-code" },
+        h("span", { class: "l" }, "Code d’équipe"), h("strong", { class: "code" }, st.codes.get(id)),
+        copyBtn(st.codes.get(id)),
+        h("button", { class: "link", type: "button", onclick: () => renewCode(id) }, "Changer")) : null,
       h("div", { class: "hint" }, `Manager : ${g.managerId ? memberName(st.roster.get(g.managerId), g.managerId) : "aucun"} · ${count(id)} commercia${count(id) > 1 ? "ux" : "l"}`),
       h("div", { class: "hint" }, `Zone : ${(g.departements || []).length ? g.departements.join(", ") : "toute la France"}`),
       h("div", { class: "hint" }, `Cibles : ${(g.cibles || []).length ? g.cibles.map(cibleLabel).join(", ") : "toutes"}`),
@@ -1574,6 +1681,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
         h("button", { class: "chip small", type: "button", onclick: () => { st.groupEdit = id; renderTeam(); } }, "Modifier"),
         isAdmin ? h("button", { class: "chip small", type: "button", onclick: () => deleteGroup(id) }, "Supprimer") : null))))
       : h("div", { class: "empty" }, "Aucun groupe. Crée un groupe, choisis son manager, sa zone et ses cibles : ses commerciaux n’auront plus qu’à appeler."));
+    if (list.length) out.push(h("p", { class: "hint" }, "Donne le code d’équipe à tes commerciaux : ils l’entrent à l’inscription et rejoignent ton groupe sans attendre de validation."));
     return out;
   }
 
@@ -1600,7 +1708,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
       if (!name.value.trim()) { err.hidden = false; err.textContent = "Donne un nom au groupe."; return; }
       const body = { name: name.value.trim().slice(0, 60), managerId: manager.value || null, departements: codes, cibles, updatedAt: now() };
       try {
-        if (id === "new") await st.db.collection("groups").add({ ...body, createdAt: now(), createdBy: st.meId });
+        if (id === "new") await createGroup(body);
         else await st.db.doc("groups/" + id).update(body);
         st.groupEdit = null; renderTeam();
       } catch (e2) { managerWriteFailed(e2); }
@@ -1620,6 +1728,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     try {
       for (const [uid, m] of st.roster) if (m.groupId === id) await st.db.doc("roster/" + uid).update({ groupId: null });
       await st.db.doc("groups/" + id).delete();
+      await st.db.doc("groupcodes/" + id).delete();
     } catch (e) { managerWriteFailed(e); }
   }
 
@@ -1643,6 +1752,11 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     const recent = days.flatMap((d) => d.calls || []).sort((a, b) => b.t.localeCompare(a.t)).slice(0, 15);
     const goalIn = h("input", { id: "m-goal", class: "input", type: "number", min: "0", max: "500", value: m.goal || "", placeholder: String((st.config && st.config.callsPerDay) || "") });
     const pct = (n) => (s.calls ? Math.round((n / s.calls) * 100) + " %" : "—");
+    // Ses prospects : fiches qui lui sont attribuées (hors simples réservations)
+    const mine = [...st.prospects.values()].filter((p) => p.assignedTo === uid && p.name && !p.reservedOnly);
+    const byStatus = STATUTS.map(([k, l]) => [l, mine.filter((p) => p.status === k).length]).filter(([, n]) => n);
+    const follow = mine.filter((p) => p.status === "rdv" || p.status === "proposition" || (p.nextAction && !CLOSED.includes(p.status)))
+      .sort((a, b) => (a.nextAction || "9").localeCompare(b.nextAction || "9")).slice(0, 25);
 
     const d = $("drawer");
     d.replaceChildren(
@@ -1651,7 +1765,9 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
           h("div", { class: "eyebrow" }, ROLES[m.role] || "Commercial"),
           h("h2", { id: "d-name" }, memberName(m, uid)),
           h("div", { style: "display:flex;flex-wrap:wrap;gap:6px" }, pills(alertsFor(uid))),
-          m.phone ? h("div", { class: "row", style: "justify-content:flex-start" }, h("span", { class: "meta" }, m.phone), copyBtn(m.phone)) : null),
+          m.phone ? h("div", { class: "row", style: "justify-content:flex-start" }, h("a", { class: "meta", href: "tel:" + m.phone.replace(/\s/g, "") }, m.phone), copyBtn(m.phone)) : null,
+          m.email ? h("div", { class: "row", style: "justify-content:flex-start" }, h("a", { class: "meta", href: "mailto:" + m.email }, m.email), copyBtn(m.email)) : null,
+          h("div", { class: "hint" }, [groupOf(uid) && "Groupe : " + groupOf(uid).name, m.approvedAt && "inscrit le " + new Date(m.approvedAt).toLocaleDateString("fr-FR"), m.joinedWithCode && "via le code " + m.joinedWithCode].filter(Boolean).join(" · "))),
         h("button", { class: "close", type: "button", "aria-label": "Fermer", onclick: closeDrawer }, "×")),
       h("section", { class: "box" }, h("h4", {}, `Sur la période (${(PERIODS.find((x) => x[0] === st.period) || PERIODS[0])[1].toLowerCase()})`),
         h("dl", { class: "kv" },
@@ -1666,6 +1782,11 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
       h("section", { class: "box" },
         barChart({ values: perDay, labels: last30.map((x) => x.slice(8, 10) + "/" + x.slice(5, 7)), title: "Appels par jour · 30 derniers jours", unit: "appels" }),
         barChart({ values: perHour, labels: hours.map((x) => x + " h"), title: "Appels par heure · période choisie", unit: "appels", height: 150 })),
+      h("section", { class: "box" }, h("h4", {}, `Ses prospects (${mine.length})`),
+        byStatus.length ? h("div", { style: "display:flex;flex-wrap:wrap;gap:6px" }, byStatus.map(([l, n]) => h("span", { class: "pill" }, `${l} : ${n}`))) : h("p", { class: "hint", style: "margin:0" }, "Aucune fiche suivie pour l’instant."),
+        follow.length ? h("ul", { class: "log" }, follow.map((p) => h("li", {},
+          h("span", {}, h("strong", {}, p.name), p.city ? ` · ${p.city}` : "", p.phone ? h("span", { class: "hint" }, ` · ${p.phone}`) : ""),
+          h("span", { class: "hint" }, statutLabel(p.status) + (p.nextAction ? " · " + new Date(p.nextAction + "T12:00").toLocaleDateString("fr-FR") : ""))))) : null),
       h("section", { class: "box" }, h("h4", {}, "Derniers appels"),
         recent.length ? h("ul", { class: "log" }, recent.map((c) => {
           const co = companyBySiren.get(c.s) || st.prospects.get(c.s) || {};
@@ -1682,7 +1803,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
         h("div", { class: "field" }, h("label", { class: "label", for: "m-role" }, "Rôle"),
           h("select", { id: "m-role", class: "input", onchange: (e) => updateMember(uid, { role: e.target.value }) },
             Object.entries(ROLES).map(([k, l]) => h("option", { value: k, selected: m.role === k }, l)))),
-        h("span", { class: "hint" }, "Un chef d’équipe a besoin de l’accès « Éditeur » dans le menu Partager pour voir les chiffres de l’équipe et valider les inscriptions."),
+        h("span", { class: "hint" }, "Un manager a besoin de l’accès « Éditeur » dans le menu Partager pour voir les chiffres de son équipe, son code d’équipe et valider les inscriptions."),
         m.status === "disabled"
           ? h("button", { class: "btn-outline", type: "button", onclick: () => updateMember(uid, { status: "active" }) }, "Réactiver l’accès")
           : h("button", { class: "btn ghost", type: "button", onclick: () => updateMember(uid, { status: "disabled" }) }, "Suspendre l’accès")) : null);
@@ -1691,7 +1812,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
   // ------------------------------------------------------------------ Accueil (vitrine) et choix de l'espace
   const SPACES = {
     commercial: { label: "Commercial", title: "Espace commercial", desc: "Tu ouvres, tu appelles. Un clic sur le résultat, l’entreprise suivante arrive. Rien d’autre à régler." },
-    chef: { label: "Manager", title: "Espace manager", desc: "Les chiffres de tes commerciaux : temps en ligne, appels, RDV, objectifs et alertes. Tu valides les inscriptions de ton groupe." },
+    chef: { label: "Manager", title: "Espace manager", desc: "Ton code d’équipe pour faire entrer tes commerciaux, puis leurs chiffres : appels, RDV, temps en ligne, prospects, objectifs et alertes." },
     admin: { label: "Admin", title: "Espace admin", desc: "Tout l’espace chef, plus les rôles de chacun, la suspension d’un accès et les réglages de l’outil." },
   };
   /** Un rôle ouvre sa porte et celles en dessous (l'admin peut aussi appeler, le chef aussi). */
@@ -1826,17 +1947,17 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
         h("div", { class: "roles" },
           h("div", { class: "role-card" }, h("div", { class: "cat" }, "Commercial"), h("h3", {}, "Appeler, sans friction"),
             h("ul", {}, h("li", {}, "File d’appels partagée, sans doublon avec les collègues"), h("li", {}, "Rappels et relances automatiques"), h("li", {}, "Tes chiffres du jour et ton objectif"))),
-          h("div", { class: "role-card" }, h("div", { class: "cat" }, "Chef d’équipe"), h("h3", {}, "Piloter l’équipe"),
-            h("ul", {}, h("li", {}, "Temps en ligne, appels, RDV par commercial"), h("li", {}, "Objectifs et alertes d’inactivité ou de retard"), h("li", {}, "Validation des nouvelles inscriptions"))),
+          h("div", { class: "role-card" }, h("div", { class: "cat" }, "Manager"), h("h3", {}, "Piloter l’équipe"),
+            h("ul", {}, h("li", {}, "Un code d’équipe pour faire entrer ses commerciaux"), h("li", {}, "Temps en ligne, appels, RDV, prospects de chacun"), h("li", {}, "Objectifs et alertes d’inactivité ou de retard"))),
           h("div", { class: "role-card" }, h("div", { class: "cat" }, "Admin"), h("h3", {}, "Gérer l’outil"),
-            h("ul", {}, h("li", {}, "Nomme les chefs d’équipe"), h("li", {}, "Suspend ou réactive un accès"), h("li", {}, "Voit toute l’activité"))))),
+            h("ul", {}, h("li", {}, "Valide les managers et crée les groupes"), h("li", {}, "Suspend ou réactive un accès"), h("li", {}, "Voit toute l’activité"))))),
 
       PUBLIC ? null : h("section", { class: "land-section" },
         h("header", {}, h("div", { class: "eyebrow" }, "Rejoindre l’équipe"), h("h2", {}, "Inscrit en ", h("span", { class: "serif" }, "une minute."))),
         h("ol", { class: "steps" },
           h("li", {}, h("h3", {}, "Connecte-toi"), h("p", {}, "Ouvre ce lien avec ton compte claude.ai : il sert d’identifiant, sans mot de passe à retenir.")),
-          h("li", {}, h("h3", {}, "Choisis « Commercial »"), h("p", {}, "Prénom, nom, téléphone. Ton inscription part chez ton chef d’équipe.")),
-          h("li", {}, h("h3", {}, "Ton chef valide"), h("p", {}, "La page s’ouvre toute seule sur ta file d’appels. Tu peux commencer.")))),
+          h("li", {}, h("h3", {}, "Choisis « Commercial »"), h("p", {}, "Prénom, nom, téléphone, et le code d’équipe donné par ton manager.")),
+          h("li", {}, h("h3", {}, "C’est parti"), h("p", {}, "Avec le bon code, la page s’ouvre aussitôt sur ta file d’appels, dans le groupe de ton manager.")))),
 
       h("div", { class: "cta-band" },
         h("h2", {}, "Prêt à ", h("span", { class: "serif" }, "décrocher ?")),
@@ -1998,12 +2119,21 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     }, onErr);
     db.collection("signups").limit(500).onSnapshot((snap) => {
       st.signups = new Map(snap.docs.map((d) => [d.id, d.data()]));
+      autoApprove();
       if (first > 0) ready(); else render();
     }, onErr);
     db.collection("groups").limit(200).onSnapshot((snap) => {
       st.groups = new Map(snap.docs.map((d) => [d.id, d.data()]));
+      autoApprove();
       if (first > 0) ready(); else render();
     }, onErr);
+    // Codes d'équipe : lisibles seulement par l'admin et les managers (accès Éditeur) ; vide pour les commerciaux.
+    db.collection("groupcodes").limit(200).onSnapshot((snap) => {
+      st.codes = new Map(snap.docs.map((d) => [d.id, d.data().code]));
+      st.codesLoaded = true;
+      autoApprove(); ensureCodes();
+      if (st.view === "equipe" && st.screen === "app") renderTeam();
+    }, () => {});
     db.doc("config/objectifs").onSnapshot((snap) => {
       st.config = snap.exists ? snap.data() : null;
       if (first > 0) ready(); else render();
@@ -2032,6 +2162,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
       render();
     }, (e) => console.warn(e));
     loadActivity();
+    autoApprove(); ensureCodes();
     if (isManager()) {
       db.collection("activity").limit(500).onSnapshot((snap) => {
         st.presence = new Map(snap.docs.map((d) => [d.id, d.data()]));

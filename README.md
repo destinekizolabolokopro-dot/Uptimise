@@ -93,21 +93,27 @@ partagée de l'artefact, et ne sont pas affectés par une mise à jour de l'annu
 
 Le lien s'ouvre sur une **page de présentation** destinée aux futurs commerciaux : le principe de l'outil, une
 journée type, les cibles, les espaces par rôle et comment rejoindre l'équipe. Le bouton « Se connecter » mène
-aux **trois portes** (Commercial, Chef d'équipe, Admin). Seule la porte qui correspond au statut de la personne
-s'ouvre : un chef ou un admin peut aussi ouvrir l'espace commercial pour appeler. Sur un appareil où l'on s'est
+aux **trois portes** (Commercial, Manager, Admin). Seule la porte qui correspond au statut de la personne
+s'ouvre : un manager ou un admin peut aussi ouvrir l'espace commercial pour appeler. Sur un appareil où l'on s'est
 déjà connecté, le lien ouvre directement son espace.
 
 ### Rôles, inscription et suivi d'équipe
 
-- **Admin** : le propriétaire de l'artefact. Il valide les inscriptions, nomme les chefs, suspend un accès.
-- **Chef d'équipe** : valide les inscriptions des commerciaux, voit le tableau de bord de l'équipe (temps en ligne,
-  début et fin de journée, appels, appels par heure, temps entre deux appels, RDV, objectifs, alertes d'inactivité
-  ou de retard) et fixe les objectifs. Il a besoin de l'accès « Éditeur » dans le menu Partager.
-- **Commercial** : s'inscrit à sa première visite (prénom, nom, téléphone), puis attend la validation. Il a besoin
-  de l'accès « Contributeur ».
+- **Admin** : le propriétaire de l'artefact. Il valide les managers, crée les groupes, change les rôles, suspend un accès.
+- **Manager** : dès que l'admin le valide, son groupe « Équipe <Prénom> » est créé avec un **code d'équipe**
+  (6 caractères, modifiable). Il donne ce code à ses commerciaux, règle la zone et les cibles de son groupe, et suit
+  chacun : coordonnées, temps en ligne, appels, RDV, prospects (RDV et rappels à venir), derniers appels,
+  objectifs et alertes. Il a besoin de l'accès « Éditeur » dans le menu Partager.
+- **Commercial** : s'inscrit à sa première visite (prénom, nom, téléphone, e-mail) avec le code d'équipe de son
+  manager. Avec le bon code, il est validé automatiquement et rejoint le groupe dès que la page du manager (ou de
+  l'admin) est ouverte. Sans code, le manager valide à la main. Il a besoin de l'accès « Contributeur ».
+
+Écran d'appel : un clic sur le résultat (touches 1 à 5) ou **« Suivante »** (touche N) pour passer une fiche qui ne
+convient pas ; elle repart pour les collègues. Un numéro déjà appelé, en cours d'appel ou suivi par quelqu'un
+n'est jamais proposé à un autre commercial, même s'il apparaît sous plusieurs entreprises.
 
 Ces règles sont appliquées par la base de l'artefact (et pas seulement par la page). Un commercial ne peut ni se
-valider lui-même ni lire l'activité de ses collègues.
+valider lui-même, ni lire les codes d'équipe, ni lire l'activité de ses collègues.
 
 ### Mise à jour de nuit
 
