@@ -152,6 +152,10 @@ Les numéros ne sont jamais publiés en clair : `docs/telephones.enc.json` est c
 membres validés reçoivent la clé (table `app_secrets`). L'annuaire public indique seulement qu'un numéro vérifié
 existe, pour que le questionnaire puisse compter les entreprises avant la validation.
 
+Le projet Supabase « uptimise » est branché (`supabase/config.json`, clé publique « publishable », faite pour être dans
+le site). La clé qui chiffre les numéros (`PHONES_KEY`) n'est jamais dans le dépôt : elle est dans la table
+`app_secrets` de Supabase et dans l'environnement de la mise à jour de nuit.
+
 Mise en place (une fois) :
 1. supabase.com › New project (région Europe), puis SQL Editor › coller `supabase/schema.sql` › Run.
 2. Authentication › Sign In / Providers › Email : désactiver « Confirm email ».
