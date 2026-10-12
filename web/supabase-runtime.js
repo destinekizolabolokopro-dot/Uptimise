@@ -180,7 +180,8 @@
   .ua-box{background:var(--bg,#fff);color:var(--ink,#0c1222);border-radius:22px;padding:28px;width:min(440px,100%);display:flex;flex-direction:column;gap:14px;box-shadow:0 40px 80px -40px rgba(0,0,0,.5)}
   .ua-box h2{margin:0;font-weight:300;font-size:32px;letter-spacing:-.02em}
   .ua-box .ua-tabs{display:flex;gap:8px}
-  .ua-box p{margin:0}`;
+  .ua-box p{margin:0}
+  .ua-box .btn-outline{width:100%}`;
   function openAuth(mode = "connexion") {
     if (!document.getElementById("ua-css")) { const s = document.createElement("style"); s.id = "ua-css"; s.textContent = css; document.head.append(s); }
     document.getElementById("ua-scrim")?.remove();
@@ -198,7 +199,9 @@
       <div class="alert" role="alert" hidden></div>
       <p class="okmsg" role="status" hidden></p>
       <button class="btn" type="submit">${mode === "creation" ? "Créer mon compte" : mode === "oubli" ? "Recevoir le lien" : mode === "nouveau" ? "Enregistrer" : "Se connecter"}</button>
-      ${mode === "connexion" ? `<button class="link" type="button" data-mode="oubli" style="align-self:flex-start">Mot de passe oublié ?</button>` : ""}
+      ${mode === "connexion" ? `<button class="btn-outline" type="button" data-mode="oubli">Mot de passe oublié ?</button>` : ""}
+      ${mode === "oubli" ? `<p class="hint">Tu reçois un lien par e-mail (regarde aussi les courriers indésirables). Il te ramène ici pour choisir un nouveau mot de passe.</p>
+        <button class="btn-outline" type="button" data-mode="connexion">← Retour à la connexion</button>` : ""}
       <button class="link" type="button" data-close style="align-self:flex-start">Annuler</button>
     </form>`;
     document.body.append(scrim);
@@ -221,7 +224,7 @@
         } else if (mode === "connexion") r = await sb.auth.signInWithPassword({ email: val("ua-email"), password: val("ua-pass") });
         else if (mode === "oubli") {
           r = await sb.auth.resetPasswordForEmail(val("ua-email"), { redirectTo: location.origin + location.pathname });
-          if (!r.error) { ok.hidden = false; ok.textContent = "Si un compte existe avec cet e-mail, un lien vient d’être envoyé."; btn.disabled = false; return; }
+          if (!r.error) { ok.hidden = false; ok.textContent = "C’est envoyé : si un compte existe avec cet e-mail, tu vas recevoir un lien. Ouvre-le depuis ce même appareil."; btn.disabled = false; return; }
         } else r = await sb.auth.updateUser({ password: val("ua-pass") });
         if (r.error) throw new Error(FR[r.error.message] || r.error.message);
         // Connecté : on recharge la page sur le choix de l'espace (la porte choisie s'ouvre toute seule)
