@@ -358,6 +358,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
       <span class="me" id="me" hidden><img alt="" id="me-avatar"><span id="me-name"></span></span>
       <button class="tab" type="button" id="btn-profil" hidden>Mon profil</button>
       <button class="tab" type="button" id="btn-switch" hidden>Changer d’espace</button>
+      <button class="tab" type="button" id="btn-logout" hidden>Se déconnecter</button>
       <button class="btn" type="button" id="btn-login" style="min-height:42px;padding:0 18px;font-size:13px">Se connecter</button>
     </nav>
   </header>
@@ -449,7 +450,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
       </div>
       <div class="chips" role="group" aria-label="Vue" id="vues"></div>
     </div>
-    <div class="alert" id="crm-off" hidden>Le suivi partagé n’est pas disponible ici : ouvrez la page connecté à claude.ai pour ajouter et suivre des prospects.</div>
+    <div class="alert" id="crm-off" hidden>Le suivi partagé n’est pas disponible ici : connecte-toi pour ajouter et suivre des prospects.</div>
     <div class="stats" id="stats"></div>
     <div id="table"></div>
   </section>
@@ -467,6 +468,9 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
 
 <script>
 (() => {
+  // Hébergement : base de l'artefact claude.ai, ou Supabase (comptes par e-mail) quand supabase-runtime.js est chargé
+  const SB = !!window.UPTIMISE_AUTH;
+  const ACCOUNT = SB ? "ton compte Uptimise (e-mail et mot de passe)" : "ton compte claude.ai";
   // ------------------------------------------------------------------ Référentiels
   const CIBLES = [
     ["difficulte", "Entreprises en difficulté"], ["grandes", "Grandes entreprises"], ["pme", "PME / ETI"],
@@ -1303,6 +1307,8 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
   // ------------------------------------------------------------------ Profil du commercial : ce qu'il veut prospecter
   // Chaque choix affiche combien d'entreprises avec un numéro vérifié y correspondent : on ne peut pas choisir
   // un département vide, et le profil ne s'enregistre que s'il donne au moins une entreprise à appeler.
+  // Entreprise avec un numéro vérifié (le numéro lui-même n'est connu qu'une fois l'accès validé)
+  const callable = (c) => !!(c.phone || c.hasPhone);
   const emptyPrefs = () => ({ mode: "departements", zones: [], ville: null, rayon: 20, cibles: [], secteurs: [], tailles: [] });
   const fullPrefs = (pr) => {
     const p = { ...emptyPrefs(), ...(pr || {}) };
@@ -1322,7 +1328,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
   function prefsCounts(pr, field, skip, allowed) {
     const sets = new Map(), all = new Set();
     for (const c of st.companies) {
-      if (!c.phone) continue;
+      if (!callable(c)) continue;
       if (prefsMatch(c, pr, null, allowed)) all.add(c.siren);
       if (field && prefsMatch(c, pr, skip, allowed)) { if (!sets.has(c[field])) sets.set(c[field], new Set()); sets.get(c[field]).add(c.siren); }
     }
@@ -1332,7 +1338,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
   function radiusCounts(pr, allowed) {
     const best = new Map();
     for (const c of st.companies) {
-      if (!c.phone || c.lat == null || !pr.ville || !prefsMatch(c, pr, "lieu", allowed)) continue;
+      if (!callable(c) || c.lat == null || !pr.ville || !prefsMatch(c, pr, "lieu", allowed)) continue;
       const d = distKm(c, pr.ville);
       if (!best.has(c.siren) || best.get(c.siren) > d) best.set(c.siren, d);
     }
@@ -1472,7 +1478,8 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     if (!st.db || !st.meId) {
       g.replaceChildren(h("div", { class: "eyebrow" }, "Espace commerciaux"),
         h("h1", {}, "Connexion ", h("span", { class: "serif", style: "display:inline" }, "requise.")),
-        h("p", { class: "lede" }, "Ouvrez cette page en étant connecté à votre compte claude.ai : il sert d’identifiant, sans mot de passe à retenir."));
+        h("p", { class: "lede" }, SB ? "Connecte-toi avec ton e-mail et ton mot de passe, ou crée ton compte en une minute." : "Ouvre cette page en étant connecté à ton compte claude.ai : il sert d’identifiant, sans mot de passe à retenir."),
+        SB ? h("button", { class: "btn", type: "button", onclick: () => window.UPTIMISE_AUTH.open(st.gateDoor) }, "Se connecter") : null);
       return;
     }
     if (m && (m.status === "refused" || m.status === "disabled")) {
@@ -1520,7 +1527,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     g.replaceChildren(
       h("div", { class: "eyebrow" }, "Espace commerciaux"),
       h("h1", {}, "Inscription, ", h("span", { class: "serif", style: "display:inline" }, "une minute.")),
-      h("p", { class: "lede", style: "max-width:none" }, "Ton compte claude.ai sert d’identifiant. Commercial : entre le code d’équipe donné par ton manager. Manager : l’admin valide ton accès et ton code d’équipe est créé tout seul."),
+      h("p", { class: "lede", style: "max-width:none" }, (SB ? "Ton compte est créé. " : "Ton compte claude.ai sert d’identifiant. ") + "Commercial : entre le code d’équipe donné par ton manager. Manager : l’admin valide ton accès et ton code d’équipe est créé tout seul."),
       h("form", { class: "form", onsubmit: async (e) => {
         e.preventDefault();
         const val = (id) => $(id).value.trim();
@@ -1541,7 +1548,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
         } catch (e2) {
           submit.disabled = false; err.hidden = false;
           err.textContent = e2 && e2.code === "invalid_argument"
-            ? "Votre accès à cette page ne permet pas de vous inscrire. Demandez à la personne qui vous l’a partagée l’accès « Contributeur »."
+            ? (SB ? "L’inscription a été refusée par la base. Déconnecte-toi, reconnecte-toi et réessaie." : "Ton accès à cette page ne permet pas de t’inscrire. Demande à la personne qui te l’a partagée l’accès « Contributeur ».")
             : "L’inscription n’a pas pu être envoyée. Vérifiez votre connexion et réessayez.";
         }
       } },
@@ -1633,7 +1640,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
   function managerWriteFailed(e) {
     console.warn(e);
     st.teamError = e && e.code === "invalid_argument"
-      ? "Cette action demande l’accès « Éditeur » à la page. L’administrateur peut vous le donner dans le menu Partager."
+      ? (SB ? "Cette action est réservée aux managers et à l’admin." : "Cette action demande l’accès « Éditeur » à la page. L’administrateur peut te le donner dans le menu Partager.")
       : "L’enregistrement a échoué. Vérifiez votre connexion et réessayez.";
     render();
   }
@@ -2049,7 +2056,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
         h("div", { class: "field" }, h("label", { class: "label", for: "m-role" }, "Rôle"),
           h("select", { id: "m-role", class: "input", onchange: (e) => updateMember(uid, { role: e.target.value }) },
             Object.entries(ROLES).map(([k, l]) => h("option", { value: k, selected: m.role === k }, l)))),
-        h("span", { class: "hint" }, "Un manager a besoin de l’accès « Éditeur » dans le menu Partager pour voir les chiffres de son équipe, son code d’équipe et valider les inscriptions."),
+        SB ? null : h("span", { class: "hint" }, "Un manager a besoin de l’accès « Éditeur » dans le menu Partager pour voir les chiffres de son équipe, son code d’équipe et valider les inscriptions."),
         m.status === "disabled"
           ? h("button", { class: "btn-outline", type: "button", onclick: () => updateMember(uid, { status: "active" }) }, "Réactiver l’accès")
           : h("button", { class: "btn ghost", type: "button", onclick: () => updateMember(uid, { status: "disabled" }) }, "Suspendre l’accès")) : null);
@@ -2090,6 +2097,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
 
   function openDoor(door) {
     st.doorMsg = null;
+    if (SB && !st.meId) { window.UPTIMISE_AUTH.open(door); return; }
     if (!st.db || !st.meId) { st.doorMsg = "Ouvre cette page en étant connecté à ton compte claude.ai : il sert d’identifiant, sans mot de passe."; render(); return; }
     if (st.role) {
       if (canOpen(st.role, door)) { enterSpace(door); return; }
@@ -2105,7 +2113,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     const meName = $("me-name").textContent;
     const state = (door) => {
       if (st.connecting) return h("span", { class: "pill" }, "Vérification…");
-      if (!st.meId) return h("span", { class: "pill" }, "Connexion claude.ai requise");
+      if (!st.meId) return h("span", { class: "pill" }, SB ? "Connexion requise" : "Connexion claude.ai requise");
       if (st.role) return canOpen(st.role, door) ? h("span", { class: "pill good" }, "✓ Accès ouvert") : h("span", { class: "pill" }, "Non accessible");
       const m = st.roster.get(st.meId), sign = st.signups.get(st.meId);
       if (m && m.status === "refused") return h("span", { class: "pill bad" }, "⚠ Inscription refusée");
@@ -2118,7 +2126,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
       h("div", { class: "eyebrow" }, "Connexion"),
       h("h1", {}, "Choisis ", h("span", { class: "serif", style: "display:inline" }, "ton espace.")),
       st.meId ? h("div", { class: "who-line" }, $("me-avatar").src ? h("img", { class: "avatar", src: $("me-avatar").src, alt: "" }) : null,
-        `Connecté avec le compte claude.ai de ${meName || "cet utilisateur"}`, st.role ? h("span", { class: "space-tag" }, "Statut : " + SPACES[st.role].label) : null) : null,
+        SB ? `Connecté : ${meName || "toi"}` : `Connecté avec le compte claude.ai de ${meName || "cet utilisateur"}`, st.role ? h("span", { class: "space-tag" }, "Statut : " + SPACES[st.role].label) : null) : null,
       h("div", { class: "doors" }, Object.entries(SPACES).map(([k, sp]) => h("button", {
         class: "door", type: "button", "aria-current": String(st.gateDoor === k), onclick: () => openDoor(k),
       }, h("div", { class: "cat" }, sp.label), h("h2", {}, sp.title), h("p", {}, sp.desc), h("div", { class: "state" }, state(k))))),
@@ -2201,7 +2209,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
       PUBLIC ? null : h("section", { class: "land-section" },
         h("header", {}, h("div", { class: "eyebrow" }, "Rejoindre l’équipe"), h("h2", {}, "Inscrit en ", h("span", { class: "serif" }, "une minute."))),
         h("ol", { class: "steps" },
-          h("li", {}, h("h3", {}, "Connecte-toi"), h("p", {}, "Ouvre ce lien avec ton compte claude.ai : il sert d’identifiant, sans mot de passe à retenir.")),
+          h("li", {}, h("h3", {}, "Connecte-toi"), h("p", {}, SB ? "Crée ton compte avec ton e-mail et un mot de passe, en une minute." : "Ouvre ce lien avec ton compte claude.ai : il sert d’identifiant, sans mot de passe à retenir.")),
           h("li", {}, h("h3", {}, "Choisis « Commercial »"), h("p", {}, "Tes coordonnées, le code d’équipe donné par ton manager, et ce que tu veux prospecter : départements, cibles, secteurs.")),
           h("li", {}, h("h3", {}, "C’est parti"), h("p", {}, "Avec le bon code, la page s’ouvre aussitôt sur ta file d’appels, dans le groupe de ton manager.")))),
 
@@ -2232,6 +2240,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     if (PUBLIC) { $("annuaire-lede").textContent = "Choisissez votre zone de chalandise et vos cibles. Chaque fiche donne la raison d’appeler, le dirigeant à demander et, en un clic, de quoi trouver le numéro."; $("tab-appel").hidden = true; $("tab-prospects").hidden = true; $("hide-taken").closest("label").hidden = true; }
     $("btn-switch").hidden = !inApp;
     $("btn-profil").hidden = !inApp || st.space !== "commercial";
+    $("btn-logout").hidden = !SB || !st.meId;
     $("btn-switch").textContent = PUBLIC ? "Présentation" : "Changer d’espace";
     $("btn-login").hidden = screen !== "accueil";
     $("btn-login").textContent = PUBLIC ? ENTRY_LABEL : st.role && savedSpace ? "Mon espace" : "Se connecter";
@@ -2300,6 +2309,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     st.screen = "connexion"; location.hash = "connexion"; render(); scrollTo(0, 0);
   });
   $("btn-profil").addEventListener("click", openProfile);
+  $("btn-logout").addEventListener("click", () => { releaseAll(); flushActivity(true); window.UPTIMISE_AUTH.logout(); });
   $("btn-switch").addEventListener("click", () => { st.leftOnce = true; leaveSpace(PUBLIC ? "accueil" : "connexion"); });
   $("logo").addEventListener("click", () => { if (st.screen === "app") { st.leftOnce = true; leaveSpace("accueil"); } else { st.screen = "accueil"; location.hash = ""; render(); scrollTo(0, 0); } });
   // Retour direct dans son espace pour qui s'est déjà connecté sur cet appareil (gain de temps)
@@ -2311,6 +2321,8 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
   if (location.hash === "#equipe") st.view = "equipe";
 
   // ------------------------------------------------------------------ Démarrage
+  let dataReadyResolve;
+  const dataReady = new Promise((r) => { dataReadyResolve = r; });
   async function loadData() {
     try {
       const res = await fetch("annuaire.min.json");
@@ -2342,6 +2354,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
       $("count").textContent = "Annuaire indisponible";
       $("cards").replaceChildren(h("div", { class: "empty", style: "grid-column:1/-1" }, "Le fichier des entreprises n’a pas pu être chargé. Rechargez la page."));
     }
+    dataReadyResolve();
     render();
   }
 
@@ -2360,7 +2373,15 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     st.db = db;
     const onErr = (e) => console.warn(e);
     let first = 4;
-    const ready = () => { if (--first === 0) { st.connecting = false; afterAccess(); } render(); };
+    const ready = () => {
+      if (--first === 0) {
+        st.connecting = false; afterAccess();
+        // Connexion faite depuis une porte : elle s'ouvre toute seule
+        const door = SB && window.UPTIMISE_AUTH.pendingDoor();
+        if (door) { st.screen = "connexion"; openDoor(door); return; }
+      }
+      render();
+    };
     db.collection("roster").limit(500).onSnapshot(async (snap) => {
       st.roster = new Map(snap.docs.map((d) => [d.id, d.data()]));
       const was = st.role; computeRole();
@@ -2404,6 +2425,22 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     }, onErr);
   }
 
+  /** Version hébergée : les numéros sont chiffrés, seuls les membres validés reçoivent la clé. */
+  async function loadPhones() {
+    try {
+      const map = await window.UPTIMISE_PHONES();
+      if (!map) return;
+      await dataReady;
+      for (const c of st.companies) {
+        const v = map[c.siren];
+        if (v) { c.phone = v[0]; c.website = v[1] || null; c.mapsUrl = v[2] || null; c.phoneProof = v[3] || null; }
+      }
+      st.phonesLoaded = true;
+      document.querySelectorAll(".profile-ed").forEach((el) => el._draw && el._draw());
+      render();
+    } catch (e) { console.warn("Numéros indisponibles", e); }
+  }
+
   let started = false;
   /** Une fois l'accès validé : CRM, suivi d'activité, présence de l'équipe. */
   async function afterAccess() {
@@ -2427,6 +2464,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     }, (e) => console.warn(e));
     loadActivity();
     autoApprove(); ensureCodes();
+    if (window.UPTIMISE_PHONES) loadPhones();
     if (isManager()) {
       db.collection("profiles").limit(500).onSnapshot((snap) => {
         st.profilesAll = new Map(snap.docs.map((d) => [d.id, d.data()]));

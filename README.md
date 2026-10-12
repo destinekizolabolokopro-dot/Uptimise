@@ -141,6 +141,27 @@ Chaque nuit, une tâche programmée recharge l'annuaire (SIRENE, BODACC), repren
 cherche de nouveaux sur Google Maps si `GOOGLE_MAPS_API_KEY` est définie (33 par nuit, soit environ 1 000 par
 mois, la part gratuite), compacte le fichier (`scripts/pack-annuaire.ts`) et republie l'artefact.
 
+## Outil complet hébergé : GitHub Pages + Supabase
+
+La même page tourne hors de claude.ai : `web/supabase-runtime.js` lui fournit la même interface de base de données,
+au-dessus de Supabase (gratuit), avec des comptes par e-mail et mot de passe. Les droits sont appliqués par la base
+(`supabase/schema.sql`, Row Level Security) : inscription et profil personnels, managers seuls à valider et à voir
+les codes d'équipe, prospects réservés aux membres validés. Le premier compte créé devient l'admin.
+
+Les numéros ne sont jamais publiés en clair : `docs/telephones.enc.json` est chiffré (AES-256-GCM) et seuls les
+membres validés reçoivent la clé (table `app_secrets`). L'annuaire public indique seulement qu'un numéro vérifié
+existe, pour que le questionnaire puisse compter les entreprises avant la validation.
+
+Mise en place (une fois) :
+1. supabase.com › New project (région Europe), puis SQL Editor › coller `supabase/schema.sql` › Run.
+2. Authentication › Sign In / Providers › Email : désactiver « Confirm email ».
+3. Authentication › URL Configuration › Site URL : l'adresse GitHub Pages du site.
+4. Project Settings › API : recopier l'URL du projet et la clé « anon public » dans `supabase/config.json`
+   (`{"url": "...", "anonKey": "..."}`), puis `PHONES_KEY=<clé> npx tsx scripts/build-pages.ts annuaire.min.json`.
+5. Dans SQL Editor : `insert into app_secrets values ('phones_key', '<clé>');` (la même clé, gardée hors du dépôt).
+
+Sans `supabase/config.json`, `build-pages.ts` produit la vitrine publique décrite ci-dessous.
+
 ## Version publique sur GitHub Pages
 
 Le dossier `docs/` contient la version publique du site : la présentation et l'annuaire, sans connexion ni base
