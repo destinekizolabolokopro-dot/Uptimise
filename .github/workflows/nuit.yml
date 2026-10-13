@@ -16,7 +16,7 @@ jobs:
         env:
           PHONES_KEY: ${{ secrets.PHONES_KEY }}
           GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
-          GOOGLE_MONTHLY_BUDGET: ${{ vars.GOOGLE_MONTHLY_BUDGET || '60' }}
+          GOOGLE_MONTHLY_BUDGET: ${{ vars.GOOGLE_MONTHLY_BUDGET || '175' }}
           GOOGLE_NIGHT_CAP: ${{ vars.GOOGLE_NIGHT_CAP || '400' }}
         run: npx --yes tsx scripts/nightly.mts
       - name: Publier si quelque chose a changé

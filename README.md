@@ -192,5 +192,5 @@ de nuit y pousse chaque jour le nouvel annuaire.
    Stock trop bas → il cherche juste ce qu'il faut, dans la limite du budget mensuel.
 
 Réglages : secrets `PHONES_KEY` et `GOOGLE_MAPS_API_KEY` (Settings › Secrets and variables › Actions),
-variables facultatives `GOOGLE_MONTHLY_BUDGET` (dollars, 60 par défaut) et `GOOGLE_NIGHT_CAP` (recherches max par nuit, 400 par défaut).
+variables facultatives `GOOGLE_MONTHLY_BUDGET` (dollars pour toute l'équipe, 175 par défaut) et `GOOGLE_NIGHT_CAP` (recherches max par nuit, 400 par défaut).
 Il faut avoir lancé `supabase/patch-02-stats.sql` une fois dans Supabase. État du robot : `data/searched.json`, `data/usage.json`.

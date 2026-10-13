@@ -5,13 +5,13 @@
 // Il retire aussi les numéros signalés « Mauvais numéro ».
 //
 // Variables : PHONES_KEY (clé du fichier chiffré), GOOGLE_MAPS_API_KEY (facultative : sans elle, aucune recherche),
-//             GOOGLE_MONTHLY_BUDGET (dollars, 60 par défaut), GOOGLE_NIGHT_CAP (recherches max par nuit, 400 par défaut).
+//             GOOGLE_MONTHLY_BUDGET (dollars pour toute l'équipe, 175 par défaut), GOOGLE_NIGHT_CAP (recherches max par nuit, 400 par défaut).
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { phoneKey, strictMatch, validPhone } from "../lib/phone-check";
 
 const FREE_SEARCHES = 1000, PRICE = 0.035, TARGET_DAYS = 21, FLOOR = 300, DEFAULT_SUCCESS = 0.27;
-const budget = Number(process.env.GOOGLE_MONTHLY_BUDGET ?? 60), nightCap = Number(process.env.GOOGLE_NIGHT_CAP ?? 400);
+const budget = Number(process.env.GOOGLE_MONTHLY_BUDGET ?? 175), nightCap = Number(process.env.GOOGLE_NIGHT_CAP ?? 400);
 const cfg = JSON.parse(readFileSync("supabase/config.json", "utf8"));
 const rpc = async (name: string) => {
   const r = await fetch(`${cfg.url}/rest/v1/rpc/${name}`, {
