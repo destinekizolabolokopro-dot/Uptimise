@@ -194,3 +194,8 @@ de nuit y pousse chaque jour le nouvel annuaire.
 Réglages : secrets `PHONES_KEY` et `GOOGLE_MAPS_API_KEY` (Settings › Secrets and variables › Actions),
 variables facultatives `GOOGLE_MONTHLY_BUDGET` (dollars pour toute l'équipe, 175 par défaut) et `GOOGLE_NIGHT_CAP` (recherches max par nuit, 400 par défaut).
 Il faut avoir lancé `supabase/patch-02-stats.sql` une fois dans Supabase. État du robot : `data/searched.json`, `data/usage.json`.
+
+## Supprimer des comptes, réinitialiser le site
+
+- **Suppression par l'admin** : dans l'espace admin, fiche d'un membre › « Supprimer ce compte » (confirmation en deux temps), ou en bas de l'écran Équipe › « Mon compte » › « Supprimer mon compte ». Elle efface la connexion, la fiche d'équipe, le profil et l'activité ; les fiches prospects suivies sont libérées. À activer une fois dans Supabase › SQL Editor : `supabase/patch-03-delete.sql`.
+- **Réinitialisation complète** : `supabase/reset-site.sql` supprime tous les comptes (admin compris) et les données d'équipe ; le premier compte créé ensuite redevient l'admin. La clé de lecture des numéros est conservée. L'étape 2 (fiches prospects) est facultative.

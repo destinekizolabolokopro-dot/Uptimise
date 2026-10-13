@@ -239,5 +239,16 @@
     logout: async () => { try { localStorage.removeItem("uptimise-espace"); } catch (e) {} await sb.auth.signOut(); location.hash = ""; location.reload(); },
     pendingDoor: () => { try { const d = sessionStorage.getItem("uptimise-porte"); sessionStorage.removeItem("uptimise-porte"); return d; } catch (e) { return null; } },
     signedIn: async () => { await ready; return !!session; },
+    // Supprime un compte (réservé à l'admin, vérifié par la base). Si c'est le sien, la session est fermée.
+    deleteAccount: async (uid) => {
+      const { error } = await sb.rpc("delete_account", { p_uid: uid });
+      if (error) throw fail(error);
+      if (session && session.user && session.user.id === uid) {
+        try { localStorage.removeItem("uptimise-espace"); } catch (e) {}
+        try { await sb.auth.signOut(); } catch (e) {}
+        location.hash = ""; location.reload();
+      }
+      return true;
+    },
   };
 })();

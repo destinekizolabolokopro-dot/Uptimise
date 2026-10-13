@@ -162,6 +162,8 @@ tr:last-child td { border-bottom: 0; }
 .status.perdu, .status.mauvais_numero { color: var(--muted); }
 .status.appele { background: var(--warn-bg); color: var(--warn); }
 .stock { margin-top: 8px; font-size: 14px; }
+.box.danger { border-color: var(--danger); }
+.btn.danger-btn { background: var(--danger); border-color: var(--danger); color: var(--bg); }
 .stock.low { background: var(--warn-bg); color: var(--warn); padding: 8px 12px; border-radius: 10px; }
 .who { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
 .due { font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -1663,6 +1665,33 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     try { await st.db.doc("roster/" + uid).update({ ...patch, updatedAt: now() }); }
     catch (e) { managerWriteFailed(e); }
   }
+  /** Suppression d'un compte par l'admin (base hébergée seulement) : confirmation en deux temps, puis la base fait le ménage. */
+  async function deleteAccount(uid) {
+    try {
+      await window.UPTIMISE_AUTH.deleteAccount(uid);
+      if (uid === st.memberOpen) st.memberOpen = null;
+      st.roster.delete(uid); st.signups.delete(uid); st.teamDays && st.teamDays.delete(uid);
+      st.confirmDelete = null; st.teamError = null;
+      closeDrawer(); render();
+    } catch (e) {
+      console.warn(e);
+      st.confirmDelete = null;
+      st.teamError = "La suppression a échoué. Vérifie ta connexion, ou que tu es bien admin, puis réessaie.";
+      render();
+    }
+  }
+  function deleteBox(uid, self) {
+    const asking = st.confirmDelete === uid;
+    return h("section", { class: "box danger" }, h("h4", {}, self ? "Supprimer mon compte" : "Supprimer ce compte"),
+      h("p", { class: "hint", style: "margin:0 0 8px" }, self
+        ? "Ton compte, ton profil et ton accès disparaissent. S’il n’y a plus aucun admin, le premier compte créé ensuite le devient."
+        : "Son accès, son profil et son historique d’activité sont supprimés. Ses prospects restent dans le CRM, libérés."),
+      asking
+        ? h("div", { class: "row" },
+            h("button", { class: "btn danger-btn", type: "button", onclick: () => deleteAccount(uid) }, "Oui, supprimer définitivement"),
+            h("button", { class: "btn ghost", type: "button", onclick: () => { st.confirmDelete = null; render(); } }, "Annuler"))
+        : h("button", { class: "btn ghost", type: "button", onclick: () => { st.confirmDelete = uid; render(); }}, self ? "Supprimer mon compte" : "Supprimer ce compte"));
+  }
   function managerWriteFailed(e) {
     console.warn(e);
     st.teamError = e && e.code === "invalid_argument"
@@ -1915,6 +1944,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
         h("button", { class: "btn", type: "submit" }, "Enregistrer"),
         h("span", { class: "hint" }, "Un objectif personnel peut être fixé dans la fiche de chaque commercial.")));
 
+    if (SB && st.role === "admin") parts.push(h("div", { class: "section-title" }, h("h3", {}, "Mon compte")), deleteBox(st.meId, true));
     box.replaceChildren(...parts);
   }
 
@@ -2085,7 +2115,8 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
         SB ? null : h("span", { class: "hint" }, "Un manager a besoin de l’accès « Éditeur » dans le menu Partager pour voir les chiffres de son équipe, son code d’équipe et valider les inscriptions."),
         m.status === "disabled"
           ? h("button", { class: "btn-outline", type: "button", onclick: () => updateMember(uid, { status: "active" }) }, "Réactiver l’accès")
-          : h("button", { class: "btn ghost", type: "button", onclick: () => updateMember(uid, { status: "disabled" }) }, "Suspendre l’accès")) : null);
+          : h("button", { class: "btn ghost", type: "button", onclick: () => updateMember(uid, { status: "disabled" }) }, "Suspendre l’accès")) : null,
+      SB && st.role === "admin" && uid !== st.meId ? deleteBox(uid, false) : null);
   }
 
   // ------------------------------------------------------------------ Accueil (vitrine) et choix de l'espace
