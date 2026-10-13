@@ -1,0 +1,29 @@
+name: Mise à jour de nuit
+on:
+  schedule:
+    - cron: "17 2 * * *"   # chaque nuit (UTC)
+  workflow_dispatch: {}     # bouton « Run workflow » pour la lancer à la main
+permissions:
+  contents: write
+jobs:
+  nuit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Garde-éveil Supabase + retrait des mauvais numéros
+        env:
+          PHONES_KEY: ${{ secrets.PHONES_KEY }}
+        run: node scripts/nightly.mjs
+      - name: Publier si quelque chose a changé
+        run: |
+          if [ -n "$(git status --porcelain docs)" ]; then
+            git config user.name "uptimise-nuit"
+            git config user.email "nuit@users.noreply.github.com"
+            git add docs
+            git commit -m "Mise à jour de nuit : mauvais numéros retirés"
+            git push
+          else
+            echo "Aucun changement."
+          fi
