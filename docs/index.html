@@ -174,6 +174,8 @@ tr:last-child td { border-bottom: 0; }
 .status.signe { background: var(--ok-bg); color: var(--ok); }
 .status.perdu, .status.mauvais_numero { color: var(--muted); }
 .status.appele { background: var(--warn-bg); color: var(--warn); }
+.stock { margin-top: 8px; font-size: 14px; }
+.stock.low { background: var(--warn-bg); color: var(--warn); padding: 8px 12px; border-radius: 10px; }
 .who { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
 .due { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .due.late { color: var(--danger); font-weight: 500; }
@@ -992,6 +994,29 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     return taken;
   }
 
+  /** L'entreprise correspond-elle aux filtres (profil, groupe ou réglages) ? */
+  function inScope(c, scope) {
+    if (scope.zones.length && !scope.zones.includes(c.department)) return false;
+    if (scope.cibles.length && !scope.cibles.includes(c.cible)) return false;
+    if (scope.secteurs.length && !scope.secteurs.includes(c.sect)) return false;
+    if (scope.tailles.length && !scope.tailles.includes(c.size)) return false;
+    if (scope.around && !(c.lat != null && distKm(c, scope.around) <= scope.around.km)) return false;
+    if (c.cible === "difficulte" && st.signaux.length && !st.signaux.includes(c.sig)) return false;
+    return true;
+  }
+  /** Numéros disponibles avec les filtres actuels : au total, et encore à appeler. */
+  function scopeStock(scope, q) {
+    const seen = new Set();
+    let total = 0;
+    for (const c of st.companies) {
+      if (seen.has(c.siren)) continue; seen.add(c.siren);
+      if (callable(c) && inScope(c, scope)) total++;
+    }
+    const left = q.list.length + (st.current ? 1 : 0) + (st.nextUp ? 1 : 0);
+    return { total, left };
+  }
+  const LOW_STOCK = 30;
+
   function queue() {
     const t = today();
     const due = [], fresh = [], seen = new Set();
@@ -999,12 +1024,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     const taken = takenPhones(), inQueue = new Set();
     for (const c of st.companies) {
       if (seen.has(c.siren)) continue; seen.add(c.siren);
-      if (scope.zones.length && !scope.zones.includes(c.department)) continue;
-      if (scope.cibles.length && !scope.cibles.includes(c.cible)) continue;
-      if (scope.secteurs.length && !scope.secteurs.includes(c.sect)) continue;
-      if (scope.tailles.length && !scope.tailles.includes(c.size)) continue;
-      if (scope.around && !(c.lat != null && distKm(c, scope.around) <= scope.around.km)) continue;
-      if (c.cible === "difficulte" && st.signaux.length && !st.signaux.includes(c.sig)) continue;
+      if (!inScope(c, scope)) continue;
       if (c.siren === st.current || c.siren === st.nextUp) continue;
       const p = st.prospects.get(c.siren);
       if (!((p && p.phone) || c.phone)) continue;
@@ -1181,7 +1201,13 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
       scope.secteurs.length ? " · " + scope.secteurs.map(secteurLabel).join(", ") : "",
       scope.tailles.length ? " · " + scope.tailles.map(tailleLabel).join(", ") : "",
       scope.conflict ? h("span", { class: "hint" }, " (une partie de ton profil sort de la zone du groupe : la zone du groupe s’applique)") : "",
-      " · ", h("button", { class: "link", type: "button", onclick: openProfile }, "Modifier mon profil"));
+      " · ", h("button", { class: "link", type: "button", onclick: openProfile }, "Modifier mon profil"),
+      (() => {
+        const sk = scopeStock(scope, queue());
+        return h("div", { class: "stock" + (sk.left < LOW_STOCK ? " low" : ""), role: "status" },
+          h("b", {}, fmtN(sk.left)), ` numéro${sk.left > 1 ? "s" : ""} encore à appeler avec ces filtres (sur ${fmtN(sk.total)} au total).`,
+          sk.left < LOW_STOCK ? h("span", {}, sk.left ? " Il en reste peu : élargis ton profil (autre zone, plus de secteurs) pour ne pas être à court." : " Élargis ton profil pour retrouver des numéros.") : null);
+      })());
     $("cibles-appel").replaceChildren(...CIBLES.map(([k, l]) => h("button", {
       class: "chip small", type: "button", "aria-pressed": String(st.cibles.includes(k)), title: CIBLE_HINT[k],
       onclick: () => { st.cibles = st.cibles.includes(k) ? st.cibles.filter((x) => x !== k) : [...st.cibles, k]; persist(); releaseAll(); st.skipped.clear(); render(); },
@@ -1211,7 +1237,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
             h("button", { class: "btn", type: "button", onclick: nextCompany }, "Reprendre les appels"),
             h("div", { class: "hint" }, "Raccourcis : 1 à 5 pour le résultat, Entrée pour reprendre."))
         : h("div", { class: "empty" },
-            h("p", { style: "margin:0 0 8px" }, scope.profile ? "Plus aucune entreprise avec un numéro vérifié dans ton profil pour le moment." : scope.group ? "Plus aucune entreprise à appeler dans ta zone pour le moment. Préviens ton manager." : "Plus aucune entreprise à appeler avec ces filtres pour le moment."),
+            h("p", { style: "margin:0 0 8px" }, scope.profile ? `Plus aucune entreprise avec un numéro vérifié dans ton profil pour le moment (${fmtN(scopeStock(scope, q).total)} numéros au total avec tes filtres, tous déjà appelés, suivis ou en cours).` : scope.group ? "Plus aucune entreprise à appeler dans ta zone pour le moment. Préviens ton manager." : "Plus aucune entreprise à appeler avec ces filtres pour le moment."),
             scope.profile ? h("p", { style: "margin:0 0 8px" }, h("button", { class: "btn", type: "button", onclick: openProfile }, "Élargir mon profil")) : null,
             withoutPhone ? h("p", { class: "hint", style: "margin:0" }, `${fmtN(withoutPhone)} entreprises de cette zone attendent leur numéro : la mise à jour de nuit les ajoute au fur et à mesure.`) : null,
             st.skipped.size ? h("button", { class: "link", type: "button", onclick: () => { st.skipped.clear(); render(); } }, "Revoir les fiches passées") : null));
