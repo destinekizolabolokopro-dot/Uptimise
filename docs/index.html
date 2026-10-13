@@ -1985,7 +1985,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
         h("button", { class: "btn", type: "submit" }, "Enregistrer"),
         h("span", { class: "hint" }, "Un objectif personnel peut être fixé dans la fiche de chaque commercial.")));
 
-    if (SB && st.role === "admin") { coachKeyCheck(); parts.push(h("div", { class: "section-title" }, h("h3", {}, "Entraînement")), coachKeyBox()); }
+    if (SB && st.role === "admin") { coachKeyCheck(); parts.push(h("div", { class: "section-title" }, h("h3", {}, "Entraînement et robot")), coachKeyBox(), robotBox()); }
     if (SB && st.role === "admin") parts.push(h("div", { class: "section-title" }, h("h3", {}, "Mon compte")), deleteBox(st.meId, true));
     box.replaceChildren(...parts);
   }
@@ -2739,6 +2739,23 @@ ${UPTIMIZ_FACTS}`;
       } }, input, h("button", { class: "btn", type: "submit" }, "Enregistrer")),
       st.coach.keyMsg ? h("span", { class: "hint" }, st.coach.keyMsg) : null,
       h("span", { class: "hint" }, `Limite : ${COACH_LIMIT} entraînements par mois pour tout le groupe${st.coach.used != null ? ` (${st.coach.used} utilisés ce mois-ci)` : ""}.`));
+  }
+  /** Robot de nuit (GitHub) : l'admin copie la clé des numéros pour la coller dans les secrets GitHub, sans l'afficher. */
+  function robotBox() {
+    if (!SB || st.role !== "admin") return null;
+    const copy = async () => {
+      try {
+        const k = await window.UPTIMISE_SECRET("phones_key");
+        if (!k) { st.robotMsg = "Clé introuvable dans le coffre."; renderTeam(); return; }
+        await navigator.clipboard.writeText(k);
+        st.robotMsg = "Clé copiée. Colle-la dans GitHub comme secret PHONES_KEY.";
+      } catch (e) { st.robotMsg = "La copie a échoué sur cet appareil. Réessaie depuis Safari ou Chrome."; }
+      renderTeam();
+    };
+    return h("section", { class: "box" }, h("h4", {}, "Robot de nuit"),
+      h("p", { class: "hint", style: "margin:0" }, "Pour que la mise à jour de nuit retire les mauvais numéros et en cherche de nouveaux, GitHub a besoin de deux secrets : PHONES_KEY (bouton ci-dessous) et GOOGLE_MAPS_API_KEY (ta clé Google)."),
+      h("div", { class: "row", style: "flex-wrap:wrap;gap:8px" }, h("button", { class: "btn-outline", type: "button", onclick: copy }, "Copier la clé des numéros")),
+      st.robotMsg ? h("span", { class: "hint" }, st.robotMsg) : null);
   }
   async function coachKeyCheck() {
     if (!SB || st.coach.keyState) return;
