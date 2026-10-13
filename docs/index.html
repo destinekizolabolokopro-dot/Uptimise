@@ -176,6 +176,22 @@ tr:last-child td { border-bottom: 0; }
 .status.appele { background: var(--warn-bg); color: var(--warn); }
 .stock { margin-top: 8px; font-size: 14px; }
 .box.danger { border-color: var(--danger); }
+.coach-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.coach-log { display: flex; flex-direction: column; gap: 10px; max-height: min(55vh, 520px); overflow-y: auto; padding: 4px 2px; }
+.bubble { text-align: left; max-width: 85%; padding: 12px 16px; border-radius: 18px; font-size: 17px; line-height: 1.45; overflow-wrap: anywhere; display: flex; flex-direction: column; gap: 4px; }
+.bubble .who { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; opacity: .7; }
+.bubble.them { align-self: flex-start; background: var(--panel); border-bottom-left-radius: 6px; }
+.bubble.me { align-self: flex-end; background: var(--brand); color: var(--brand-ink); border-bottom-right-radius: 6px; }
+.bubble.typing { letter-spacing: .3em; }
+.coach-bar { display: flex; gap: 10px; align-items: stretch; }
+.coach-input { height: auto; min-height: 54px; padding: 14px 16px; resize: vertical; flex: 1; min-width: 0; }
+.mic { flex: none; width: 58px; height: 58px; align-self: flex-end; border-radius: 50%; border: 1px solid var(--line-strong); background: var(--card); font-size: 22px; color: var(--ink); }
+.mic.on { background: var(--danger); border-color: var(--danger); color: var(--bg); animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .7; } }
+@media (prefers-reduced-motion: reduce) { .mic.on { animation: none; } }
+.coach-score { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.coach-score .n { font-size: 56px; font-weight: 300; letter-spacing: -.02em; }
+@media (max-width: 560px) { .coach-bar { flex-wrap: wrap; } .coach-bar .btn { flex: 1; } .bubble { max-width: 92%; } }
 .btn.danger-btn { background: var(--danger); border-color: var(--danger); color: var(--bg); }
 .stock.low { background: var(--warn-bg); color: var(--warn); padding: 8px 12px; border-radius: 10px; }
 .who { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
@@ -370,6 +386,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
       <button class="tab" role="tab" id="tab-appel" aria-selected="true">Appeler</button>
       <button class="tab" role="tab" id="tab-annuaire" aria-selected="false">Annuaire</button>
       <button class="tab" role="tab" id="tab-prospects" aria-selected="false">Prospects<span class="badge" id="badge-mine" hidden></span></button>
+      <button class="tab" role="tab" id="tab-coach" aria-selected="false" hidden>S’entraîner</button>
       <button class="tab" role="tab" id="tab-equipe" aria-selected="false" hidden>Équipe<span class="badge" id="badge-signups" hidden></span></button>
       <span class="space-tag" id="space-tag" hidden></span>
       <span class="me" id="me" hidden><img alt="" id="me-avatar"><span id="me-name"></span></span>
@@ -415,6 +432,16 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     <div class="scope" id="call-scope" hidden></div>
     <div class="kpis" id="kpis"></div>
     <div id="call"></div>
+  </section>
+
+  <section id="view-coach" hidden>
+    <div class="call-head">
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="eyebrow">Entraînement</div>
+        <h1>Un dirigeant, <span class="serif" style="display:inline">zéro risque.</span></h1>
+      </div>
+    </div>
+    <div id="coach"></div>
   </section>
 
   <section id="view-annuaire" hidden>
@@ -550,6 +577,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     current: null, nextUp: null, reserving: false, prefetching: false, shownAt: 0, skipped: new Set(), handled: new Set(), rappel: false, autoStart: true,
     role: null, isOwner: false, roster: new Map(), signups: new Map(), presence: new Map(), config: null, act: null,
     period: "jour", teamDays: null, memberOpen: null, connecting: true,
+    coach: { phase: "setup", setup: { objectif: "rdv", niveau: "moyen", persona: "hasard" }, voice: true, handsFree: true, voices: {}, turns: [], messages: [], used: null },
     screen: "accueil", space: null, gateDoor: null, doorMsg: null, groups: new Map(), codes: new Map(), noteOpen: false, groupEdit: null,
     prospects: new Map(), // siren -> doc data
     db: null, user: null, meId: null, canWrite: true,
@@ -1957,6 +1985,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
         h("button", { class: "btn", type: "submit" }, "Enregistrer"),
         h("span", { class: "hint" }, "Un objectif personnel peut être fixé dans la fiche de chaque commercial.")));
 
+    if (SB && st.role === "admin") { coachKeyCheck(); parts.push(h("div", { class: "section-title" }, h("h3", {}, "Entraînement")), coachKeyBox()); }
     if (SB && st.role === "admin") parts.push(h("div", { class: "section-title" }, h("h3", {}, "Mon compte")), deleteBox(st.meId, true));
     box.replaceChildren(...parts);
   }
@@ -2298,7 +2327,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
       if (st.connecting) screen = "connexion"; // vérification du statut en cours : on attend sans changer d'écran
       else if (st.role && !st.space && savedSpace && canOpen(st.role, savedSpace) && !st.leftOnce) {
         st.space = savedSpace;
-        if (!["#appel", "#annuaire", "#prospects", "#equipe"].includes(location.hash)) st.view = savedSpace === "commercial" ? "appel" : "equipe";
+        if (!["#appel", "#annuaire", "#prospects", "#equipe", "#coach"].includes(location.hash)) st.view = savedSpace === "commercial" ? "appel" : "equipe";
       } else { st.screen = "connexion"; screen = "connexion"; }
     }
     const inApp = screen === "app";
@@ -2317,7 +2346,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     $("space-tag").hidden = !inApp || PUBLIC;
     if (inApp && !PUBLIC) $("space-tag").textContent = SPACES[st.space].label;
     if (!inApp) {
-      ["view-appel", "view-annuaire", "view-prospects", "view-equipe"].forEach((id) => { $(id).hidden = true; });
+      ["view-appel", "view-annuaire", "view-prospects", "view-equipe", "view-coach"].forEach((id) => { $(id).hidden = true; });
       if (screen === "accueil") renderAccueil();
       else {
         renderDoors();
@@ -2328,12 +2357,14 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
       return;
     }
     if (st.view === "equipe" && !managerSpace) st.view = "appel";
-    // Espace commercial : un seul écran, celui des appels
+    if (st.view === "coach" && !SB) st.view = "appel";
+    $("tab-coach").hidden = !SB;
+    // Espace commercial : l'écran des appels, et l'entraînement
     if (st.space === "commercial") {
-      st.view = "appel";
-      ["tab-appel", "tab-annuaire", "tab-prospects"].forEach((id) => { $(id).hidden = true; });
+      if (st.view !== "coach") st.view = "appel";
+      $("tab-annuaire").hidden = true; $("tab-prospects").hidden = true;
     }
-    for (const v of ["appel", "annuaire", "prospects", "equipe"]) {
+    for (const v of ["appel", "annuaire", "prospects", "equipe", "coach"]) {
       $("view-" + v).hidden = st.view !== v;
       $("tab-" + v).setAttribute("aria-selected", String(st.view === v));
     }
@@ -2344,11 +2375,379 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     if (st.view === "appel") { watchCallNotes(); renderCall(); }
     else if (st.view === "annuaire") renderAnnuaire();
     else if (st.view === "prospects") renderProspects();
+    else if (st.view === "coach") { if (st.coach.used == null) coachUsage(); renderCoach(); }
     else renderTeam();
     const d = $("drawer");
     const editing = document.activeElement && d.contains(document.activeElement) && document.activeElement.matches("input, textarea, select");
     if (st.open) renderDrawer(); else if (st.memberOpen && !editing) renderMember();
   }
+
+  // ------------------------------------------------------------------ Entraînement : un dirigeant joué par Claude, à l'oral
+  // La clé de l'IA est rangée dans le coffre Supabase (lisible par les membres validés), jamais dans le code du site.
+  const COACH_MODEL = "claude-opus-5-5";
+  const COACH_LIMIT = 40; // entraînements par mois pour tout le groupe
+  const OBJECTIFS = [
+    ["rdv", "Décrocher un rendez-vous", "Le commercial réussit s’il obtient un rendez-vous (téléphone ou visio) avec un jour ET une heure acceptés par le dirigeant."],
+    ["upstart", "Faire créer le compte gratuit", "Le commercial réussit si le dirigeant accepte clairement de créer son compte gratuit UP START (aujourd’hui ou à un moment précis)."],
+    ["upone", "Vendre UP ONE", "Le commercial réussit si le dirigeant accepte clairement de souscrire UP ONE (ou un rendez-vous de signature avec date et heure)."],
+    ["connaitre", "Se faire connaître", "Le commercial réussit s’il obtient l’intérêt du dirigeant ET son adresse e-mail directe pour lui envoyer une présentation."],
+    ["qualifier", "Qualifier le besoin", "Le commercial réussit s’il obtient au moins trois informations concrètes : un poste de charge important, son montant approximatif ou son fournisseur, et l’échéance d’un contrat."],
+  ];
+  const NIVEAUX = [
+    ["facile", "Facile", "Tu es plutôt ouvert. Une ou deux objections simples, que tu lâches si la réponse est correcte."],
+    ["moyen", "Moyen", "Tu es occupé et sceptique. Trois objections réalistes, tu ne cèdes que si les réponses sont claires, concrètes et respectueuses de ton temps."],
+    ["difficile", "Difficile", "Tu es pressé, méfiant et tu as déjà été démarché plusieurs fois. Quatre ou cinq objections fortes, tu coupes la parole aux discours trop longs, et tu raccroches si le commercial récite un script, insiste lourdement ou ne répond pas à tes questions."],
+    ["expert", "Expert", "Comme « difficile », et en plus tu tends des pièges : tu demandes des économies garanties chiffrées, tu poses des questions précises sur la commission, la sécurité bancaire et les données. Tu ne cèdes qu’à un commercial excellent, honnête et précis."],
+  ];
+  const PERSONAS = [
+    { id: "restau", g: "f", label: "Gérante débordée", txt: "Tu es la gérante, en plein coup de feu dans ton activité. Tu parles vite, tu es directe, un peu familière. Tu n’as littéralement pas le temps." },
+    { id: "comptable", g: "h", label: "Dirigeant méfiant", txt: "Tu es le dirigeant, ancien comptable, précis et méfiant. Tu veux des preuves, des chiffres, des références. La connexion de tes comptes bancaires t’inquiète beaucoup. Vocabulaire soutenu, phrases courtes et sèches." },
+    { id: "aimable", g: "f", label: "Gérante aimable mais indécise", txt: "Tu es la gérante, chaleureuse et curieuse, tu poses des questions. Mais tu repousses toujours la décision : « il faut que j’en parle à mon associé », « rappelez-moi le mois prochain »." },
+    { id: "artisan", g: "h", label: "Patron bourru", txt: "Tu es le patron, un homme de terrain à l’ancienne. Langage populaire, tu tutoies vite, tu dis « ben », « hein », « bon ». Tu as « ton courtier depuis vingt ans » et tu n’aimes pas qu’on te fasse perdre ton temps." },
+    { id: "barrage", g: "f", label: "Assistante qui filtre", txt: "Tu es l’assistante de direction. Ton travail est de protéger le dirigeant : « c’est à quel sujet ? », « il est en réunion », « envoyez un mail à contact@ ». Tu ne passes le dirigeant (et tu deviens alors le dirigeant, un homme pressé) que si le commercial est poli, précis et donne une vraie raison." },
+    { id: "daf", g: "h", label: "Directeur financier exigeant", txt: "Tu es le directeur administratif et financier. Compétent, technique, poli mais froid. Tu attaques sur la commission de 30 % au-delà du crédit, la garantie, la confidentialité des données (RGPD), et tu compares avec tes courtiers actuels." },
+    { id: "sature", g: "h", label: "Gérant déjà trop démarché", txt: "Tu es le gérant. On t’appelle dix fois par semaine pour ce genre de chose. Tu es agacé, sarcastique au début (« encore un ! »), mais tu peux t’adoucir si le commercial est sincère et différent." },
+    { id: "deplacement", g: "f", label: "Dirigeante en déplacement", txt: "Tu es la dirigeante, tu réponds en voiture ou sur un salon, entre deux rendez-vous. Tu veux l’essentiel en une phrase, tu proposes vite « rappelez-moi » ou « envoyez-moi un mail », sauf si on t’accroche tout de suite." },
+  ];
+  const EMOTIONS = ["neutre", "presse", "agace", "mefiant", "curieux", "interesse", "amuse", "froid", "chaleureux"];
+  const TURN_SCHEMA = {
+    type: "object", additionalProperties: false, required: ["reponse", "emotion", "raccroche", "objectif_atteint"],
+    properties: {
+      reponse: { type: "string", description: "Ce que tu dis au téléphone, à l’oral, sans didascalie" },
+      emotion: { type: "string", enum: EMOTIONS },
+      raccroche: { type: "boolean" },
+      objectif_atteint: { type: "boolean" },
+    },
+  };
+  const DEBRIEF_SCHEMA = {
+    type: "object", additionalProperties: false,
+    required: ["note", "objectif_atteint", "resume", "points_forts", "a_ameliorer", "meilleure_reponse"],
+    properties: {
+      note: { type: "integer", description: "Note sur 10" },
+      objectif_atteint: { type: "boolean" },
+      resume: { type: "string" },
+      points_forts: { type: "array", items: { type: "string" } },
+      a_ameliorer: { type: "array", items: { type: "string" } },
+      meilleure_reponse: {
+        type: "object", additionalProperties: false, required: ["moment", "proposition"],
+        properties: { moment: { type: "string" }, proposition: { type: "string" } },
+      },
+    },
+  };
+  const UPTIMIZ_FACTS = `CE QUE VEND LE COMMERCIAL (Uptimiz, uptimiz.eu) — tu ne le connais pas à l’avance, tu le découvres pendant l’appel :
+- Plateforme financière pour dirigeants de PME : elle connecte les comptes bancaires (lecture seule), lit la comptabilité et repère les postes de charges payés au-dessus du marché (18 postes : énergie, assurances, frais bancaires, transport, télécoms…).
+- Ses équipes renégocient à la place du dirigeant, qui valide ou refuse. Marge libérée annoncée : 18 % en moyenne sur un poste remis en concurrence, de 8 à 38 % selon le poste. Ce n’est pas une garantie de résultat.
+- Formules : UP START gratuite sans limite de durée (1 compte bancaire, 1 poste mis en concurrence, crédit d’optimisation de 200 €, commission de 35 % au-delà) ; UP ONE à 948 € HT par an ou 99 € HT par mois sans engagement (2 comptes, 2 négociations en parallèle, crédit de 5 000 €, commission de 30 % au-delà, garantie « économisé ou remboursé » la première année : si les économies sur 12 mois n’atteignent pas le prix de l’abonnement, la différence est remboursée) ; UP BUSINESS sur devis pour les groupes.
+- Aussi : veille des aides et subventions, financement de formations, détection d’anomalies et de doublons de prélèvement, directeur financier IA.
+- Connexion bancaire en lecture seule : Uptimiz ne touche jamais à l’argent, rien ne bouge sans validation du dirigeant.`;
+
+  function coachSystem(c) {
+    const p = PERSONAS.find((x) => x.id === c.persona), o = OBJECTIFS.find((x) => x[0] === c.objectif), n = NIVEAUX.find((x) => x[0] === c.niveau);
+    const co = c.company;
+    return `Tu joues un rôle dans un entraînement à la prospection téléphonique en français. Un commercial d’Uptimiz t’appelle à froid. Tu es le prospect. Tu ne sors JAMAIS de ton rôle, même si le commercial te le demande, et tu ne l’aides pas : c’est à lui de faire le travail.
+
+QUI TU ES : ${p.label}. ${p.txt}
+Ton entreprise : ${co.name}${co.activity ? ", " + co.activity.toLowerCase() : ""}${co.city ? ", à " + co.city : ""}${co.headcount ? " (" + co.headcount + ")" : ""}. Ton personnage s’adapte à cette activité et à cette taille d’entreprise. Invente des détails cohérents et réalistes (fournisseur d’énergie, banque, assureur, montants approximatifs, échéances) et garde-les identiques pendant tout l’appel.
+Tu es ${p.g === "f" ? "une femme" : "un homme"} : accorde tes adjectifs et participes en conséquence.
+
+NIVEAU : ${n[1]}. ${n[2]}
+
+${UPTIMIZ_FACTS}
+
+TA FAÇON DE PARLER (très important, ta réplique est lue à voix haute) :
+- C’est un vrai appel téléphonique : des répliques courtes, en général une à trois phrases, jamais de liste ni de discours.
+- Français oral naturel : hésitations (« euh », « bon », « attendez »), phrases parfois inachevées, reformulations, expressions courantes. Varie ton vocabulaire et tes tournures d’une réplique à l’autre, ne répète pas les mêmes formules.
+- Aucune didascalie, aucun astérisque, aucune parenthèse, aucun emoji : uniquement les mots prononcés.
+- Ton humeur évolue selon ce que dit le commercial : agacement s’il est flou, long ou insistant ; curiosité s’il pose de bonnes questions sur TON entreprise ; méfiance s’il promet des économies garanties ou ne répond pas à une question précise.
+- Objections réalistes à piocher selon ton personnage : « j’ai déjà un courtier / mon comptable s’en occupe », « pas le temps », « envoyez-moi un mail », « c’est combien ? », « vous touchez à mes comptes ? », « c’est garanti, vos 18 % ? », « on a déjà renégocié l’an dernier », « rappelez-moi plus tard », « je ne donne pas ces informations au téléphone ».
+- Si le commercial affirme quelque chose de faux par rapport à ce que vend Uptimiz (économie garantie, prix inventé, accès à l’argent…), réagis comme un vrai prospect qui sent l’arnaque.
+- Tu peux raccrocher (raccroche = true, avec une dernière phrase) si le commercial est impoli, récite un script sans t’écouter, ou si l’appel n’avance plus après plusieurs échanges. Au niveau facile, raccroche rarement.
+
+OBJECTIF CACHÉ DU COMMERCIAL (tu ne le connais pas, il sert seulement à juger) : ${o[1]}. ${o[2]}
+Mets objectif_atteint = true uniquement quand cette condition est réellement remplie dans la conversation, puis conclus naturellement l’appel (raccroche = true).
+
+FORMAT : réponds uniquement avec l’objet JSON demandé. « reponse » contient ce que tu dis, « emotion » ton humeur du moment.`;
+  }
+  const coachDebriefSystem = `Tu es un coach expert en prospection téléphonique B2B en France. On te donne la transcription d’un appel d’entraînement entre un commercial d’Uptimiz et un prospect simulé, avec l’objectif du commercial. Évalue le commercial avec exigence et bienveillance, en français simple et direct, en le tutoyant.
+- note : sur 10, honnête (5 = correct sans plus, 8 = très bon, 10 = exceptionnel).
+- resume : deux phrases maximum sur le déroulé.
+- points_forts : 2 à 3 éléments précis, cités de la conversation.
+- a_ameliorer : 2 à 4 conseils concrets et actionnables (accroche, questions de découverte, traitement d’objection, closing, écoute, durée, honnêteté sur les chiffres).
+- meilleure_reponse : le moment où le commercial a perdu le plus de terrain, et la phrase exacte qu’il aurait pu dire à la place.
+Signale clairement toute promesse fausse ou exagérée (économie garantie, chiffres inventés).
+${UPTIMIZ_FACTS}`;
+
+  // --- Voix (synthèse du téléphone) et micro (reconnaissance vocale du navigateur)
+  const TTS = typeof speechSynthesis !== "undefined" ? speechSynthesis : null;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+  const FEM = /am[ée]lie|audrey|aur[ée]lie|marie|joana|virginie|denise|julie|hortense|[ée]lo[iï]se|c[ée]line|l[ée]a\b|charlotte|sylvie|claire|chantal|elsa|vivienne|brigitte|coralie|jacqueline|jos[ée]phine|manon|sandy|flo\b|shelley|female|femme|google fran/i;
+  const MASC = /thomas|daniel|nicolas|paul|henri|claude|r[ée]mi|jacques|antoine|alain|fabrice|g[ée]rard|jean|louis|yves|mathieu|eddy|grandpa|reed|rocko|male\b|homme/i;
+  const frVoices = () => (TTS ? TTS.getVoices().filter((v) => /^fr/i.test(v.lang)) : []);
+  const voiceScore = (v) => (/premium|enhanced|am[ée]lior|natural|neural|online/i.test(v.name) ? 4 : 0) + (/google/i.test(v.name) ? 1 : 0) + (/^fr[-_]FR/i.test(v.lang) ? 1 : 0) - (/eddy|grandpa|grandma|reed|rocko|sandy|shelley|flo\b/i.test(v.name) ? 3 : 0);
+  function pickVoice(g) {
+    const all = frVoices();
+    if (!all.length) return null;
+    const re = g === "f" ? FEM : MASC;
+    const match = all.filter((v) => re.test(v.name));
+    return (match.length ? match : all).slice().sort((a, b) => voiceScore(b) - voiceScore(a))[0];
+  }
+  const PROSODY = { neutre: [1, 1], presse: [1.14, 1.04], agace: [1.08, 0.92], mefiant: [0.95, 0.95], curieux: [1, 1.08], interesse: [1.02, 1.05], amuse: [1.04, 1.12], froid: [0.94, 0.88], chaleureux: [0.98, 1.08] };
+  function speak(text, emotion, g) {
+    return new Promise((resolve) => {
+      if (!TTS || !st.coach.voice) return resolve();
+      try {
+        TTS.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        const v = st.coach.voices[g] || pickVoice(g);
+        if (v) { u.voice = v; u.lang = v.lang; } else u.lang = "fr-FR";
+        const [rate, pitch] = PROSODY[emotion] || PROSODY.neutre;
+        u.rate = rate; u.pitch = pitch;
+        let done = false; const end = () => { if (!done) { done = true; resolve(); } };
+        u.onend = end; u.onerror = end;
+        setTimeout(end, 1500 + text.length * 110); // filet de sécurité si le navigateur ne prévient pas
+        TTS.speak(u);
+      } catch (e) { resolve(); }
+    });
+  }
+  let recog = null;
+  function listen() {
+    if (!SR || st.coach.listening || st.coach.busy) return;
+    try {
+      recog = new SR(); recog.lang = "fr-FR"; recog.interimResults = true; recog.continuous = false;
+      let finalText = "";
+      recog.onresult = (e) => {
+        let interim = "";
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          if (e.results[i].isFinal) finalText += e.results[i][0].transcript; else interim += e.results[i][0].transcript;
+        }
+        const box = $("coach-input"); if (box) box.value = (finalText + interim).trim();
+      };
+      recog.onerror = (e) => { st.coach.listening = false; if (e.error === "not-allowed" || e.error === "service-not-allowed") st.coach.micError = "Le micro est bloqué : autorise-le pour ce site, ou écris ta réponse."; renderCoach(); };
+      recog.onend = () => {
+        st.coach.listening = false;
+        if (st.coach.ignoreRec) { st.coach.ignoreRec = false; renderCoach(); return; } // réponse déjà envoyée au clavier
+        const t = finalText.trim(); if (t) coachSend(t); else renderCoach();
+      };
+      st.coach.listening = true; st.coach.micError = null; recog.start(); renderCoach();
+    } catch (e) { st.coach.listening = false; renderCoach(); }
+  }
+  function stopListening() { try { recog && recog.stop(); } catch (e) {} }
+
+  // --- Client Claude (chargé à la demande, clé lue dans le coffre)
+  let claudeP = null;
+  function claudeClient() {
+    if (!claudeP) claudeP = (async () => {
+      const key = window.UPTIMISE_SECRET ? await window.UPTIMISE_SECRET("anthropic_key") : null;
+      if (!key) return null;
+      const mod = await import("https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@0.129.0/+esm");
+      const Anthropic = mod.default || mod.Anthropic;
+      return new Anthropic({ apiKey: key, dangerouslyAllowBrowser: true, maxRetries: 2 });
+    })().catch((e) => { claudeP = null; throw e; });
+    return claudeP;
+  }
+  async function askClaude(system, messages, schema, effort, maxTokens) {
+    const client = await claudeClient();
+    if (!client) throw new Error("no_key");
+    const res = await client.beta.messages.create({
+      model: COACH_MODEL, max_tokens: maxTokens,
+      betas: ["server-side-fallback-2026-07-01"], fallbacks: "default",
+      system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
+      output_config: { effort, format: { type: "json_schema", schema } },
+      messages,
+    });
+    if (res.stop_reason === "refusal") throw new Error("refusal");
+    const block = res.content.find((b) => b.type === "text");
+    if (!block) throw new Error("empty");
+    return JSON.parse(block.text);
+  }
+
+  // --- Compteur mensuel (tout le groupe)
+  const coachMonth = () => new Date().toISOString().slice(0, 7);
+  async function coachUsage() {
+    try { const s = await st.db.doc("training/" + coachMonth()).get(); st.coach.used = s.exists ? (s.data().count || 0) : 0; }
+    catch (e) { st.coach.used = null; }
+    if (st.view === "coach") renderCoach();
+  }
+  async function coachTake() {
+    const ref = st.db.doc("training/" + coachMonth());
+    const s = await ref.get();
+    const d = s.exists ? s.data() : { count: 0, byUser: {} };
+    if ((d.count || 0) >= COACH_LIMIT) { st.coach.used = d.count; return false; }
+    const byUser = { ...(d.byUser || {}) }; byUser[st.meId] = (byUser[st.meId] || 0) + 1;
+    await ref.set({ count: (d.count || 0) + 1, byUser, updatedAt: now() });
+    st.coach.used = (d.count || 0) + 1;
+    return true;
+  }
+
+  // --- Déroulé d'un entraînement
+  function coachCompany() {
+    const scope = callScope();
+    const pool = st.companies.filter((c) => c.activity && inScope(c, scope));
+    const list = pool.length ? pool : st.companies.filter((c) => c.activity);
+    return list.length ? list[Math.floor(Math.random() * list.length)] : { name: "Martin et Fils", activity: "Commerce de gros", city: "Lyon" };
+  }
+  async function coachStart() {
+    const c = st.coach;
+    // iOS n'autorise la voix qu'après un geste : on « réveille » la synthèse pendant le clic
+    if (TTS && c.voice) { try { const u = new SpeechSynthesisUtterance(" "); u.volume = 0; TTS.speak(u); } catch (e) {} }
+    c.error = null; c.busy = true; renderCoach();
+    try {
+      if (!(await coachTake())) { c.busy = false; c.error = `Les ${COACH_LIMIT} entraînements du mois sont utilisés pour le groupe. Ils reviennent le 1er du mois prochain.`; renderCoach(); return; }
+    } catch (e) { c.busy = false; c.error = "Impossible de vérifier le compteur d’entraînements. Vérifie ta connexion."; renderCoach(); return; }
+    const persona = c.setup.persona === "hasard" ? PERSONAS[Math.floor(Math.random() * PERSONAS.length)].id : c.setup.persona;
+    const co = coachCompany();
+    c.session = { id: Math.random().toString(36).slice(2, 10), persona, objectif: c.setup.objectif, niveau: c.setup.niveau, company: { name: co.name, activity: co.activity || null, city: co.city || null, headcount: co.headcount || null }, startedAt: Date.now() };
+    c.system = coachSystem(c.session);
+    c.messages = [{ role: "user", content: "[Le téléphone sonne. Tu décroches. Dis ta première phrase.]" }];
+    c.turns = []; c.phase = "call"; c.debrief = null;
+    await coachTurn();
+  }
+  async function coachTurn() {
+    const c = st.coach;
+    c.busy = true; renderCoach();
+    try {
+      const r = await askClaude(c.system, c.messages, TURN_SCHEMA, "low", 4000);
+      c.messages.push({ role: "assistant", content: JSON.stringify(r) });
+      const reply = String(r.reponse || "").replace(/[*_]|\([^)]*\)|\[[^\]]*\]/g, "").trim() || "Allô ?";
+      c.turns.push({ who: "prospect", text: reply, emotion: r.emotion });
+      c.busy = false;
+      if (r.objectif_atteint) c.reached = true;
+      if (r.raccroche) c.hungUp = true;
+      renderCoach();
+      const p = PERSONAS.find((x) => x.id === c.session.persona);
+      await speak(reply, r.emotion, p ? p.g : "h");
+      if (c.hungUp || c.reached) { setTimeout(coachEnd, 600); return; }
+      if (c.handsFree && SR && c.phase === "call") listen();
+    } catch (e) {
+      c.busy = false;
+      c.error = String(e && e.message) === "no_key" ? "L’entraînement n’est pas encore activé : l’admin doit enregistrer la clé de l’IA dans l’écran Équipe."
+        : String(e && e.message) === "refusal" ? "L’IA a refusé de répondre à ce message. Reformule ta phrase."
+        : "L’IA ne répond pas pour le moment. Vérifie ta connexion et réessaie.";
+      if (c.messages.length && c.messages[c.messages.length - 1].role === "user" && c.turns.length && c.turns[c.turns.length - 1].who === "moi") { c.messages.pop(); const t = c.turns.pop(); c.retryText = t.text; }
+      renderCoach();
+    }
+  }
+  function coachSend(text) {
+    const c = st.coach;
+    text = (text || "").trim();
+    if (!text || c.busy || c.phase !== "call") return;
+    if (TTS) TTS.cancel();
+    if (c.listening) { c.ignoreRec = true; c.listening = false; try { recog && recog.abort(); } catch (e) {} }
+    c.turns.push({ who: "moi", text }); c.messages.push({ role: "user", content: text }); c.error = null; c.retryText = null;
+    const box = $("coach-input"); if (box) box.value = "";
+    coachTurn();
+  }
+  async function coachEnd() {
+    const c = st.coach;
+    if (c.phase !== "call") return;
+    stopListening(); if (TTS) TTS.cancel();
+    c.phase = "debrief"; c.busy = true; c.error = null; renderCoach();
+    const p = PERSONAS.find((x) => x.id === c.session.persona), o = OBJECTIFS.find((x) => x[0] === c.session.objectif), n = NIVEAUX.find((x) => x[0] === c.session.niveau);
+    const transcript = c.turns.map((t) => (t.who === "moi" ? "COMMERCIAL : " : "PROSPECT : ") + t.text).join("\n");
+    try {
+      if (c.turns.filter((t) => t.who === "moi").length === 0) throw new Error("empty_call");
+      c.debrief = await askClaude(coachDebriefSystem, [{ role: "user", content: `Objectif du commercial : ${o[1]} (${o[2]})\nProspect simulé : ${p.label}, niveau ${n[1]}, entreprise ${c.session.company.name}.\nL’appel s’est terminé ${c.hungUp ? "par un raccrochage du prospect" : c.reached ? "après l’atteinte de l’objectif" : "à l’initiative du commercial"}.\n\nTRANSCRIPTION :\n${transcript}` }], DEBRIEF_SCHEMA, "medium", 8000);
+      try { await st.db.doc(`training/${coachMonth()}/sessions/${c.session.id}`).set({ uid: st.meId, at: now(), persona: c.session.persona, objectif: c.session.objectif, niveau: c.session.niveau, note: c.debrief.note, atteint: !!c.debrief.objectif_atteint, echanges: c.turns.length }); } catch (e) {}
+    } catch (e) {
+      c.error = String(e && e.message) === "empty_call" ? "Pas de bilan : tu n’as rien dit pendant l’appel." : "Le bilan n’a pas pu être préparé. Vérifie ta connexion.";
+    }
+    c.busy = false; renderCoach();
+  }
+  function coachReset() { stopListening(); if (TTS) TTS.cancel(); Object.assign(st.coach, { phase: "setup", session: null, turns: [], messages: [], debrief: null, error: null, hungUp: false, reached: false, retryText: null }); coachUsage(); renderCoach(); }
+
+  // --- Affichage
+  function renderCoach() {
+    const c = st.coach, box = $("coach");
+    if (!box) return;
+    const errorBox = c.error ? h("div", { class: "alert", role: "alert" }, c.error) : null;
+    if (c.phase === "setup") {
+      const chipsRow = (list, key) => h("div", { class: "chips", role: "group" }, list.map(([k, l]) => h("button", { class: "chip small", type: "button", "aria-pressed": String(c.setup[key] === k), onclick: () => { c.setup[key] = k; renderCoach(); } }, l)));
+      const left = c.used == null ? null : Math.max(0, COACH_LIMIT - c.used);
+      box.replaceChildren(h("div", { class: "call-card coach-setup" },
+        h("h2", {}, "Prépare ton appel"),
+        h("p", { class: "hint", style: "margin:0" }, "Un dirigeant simulé par l’IA décroche. Il a son caractère, ses objections et son humeur. Parle-lui comme au téléphone : tu reçois une note et des conseils à la fin."),
+        h("div", { class: "field" }, h("span", { class: "label" }, "Ton objectif"), chipsRow(OBJECTIFS, "objectif")),
+        h("div", { class: "field" }, h("span", { class: "label" }, "Difficulté"), chipsRow(NIVEAUX, "niveau")),
+        h("div", { class: "field" }, h("label", { class: "label", for: "coach-persona" }, "Qui décroche"),
+          h("select", { id: "coach-persona", class: "input", onchange: (e) => { c.setup.persona = e.target.value; } },
+            h("option", { value: "hasard", selected: c.setup.persona === "hasard" }, "Au hasard (le plus réaliste)"),
+            PERSONAS.map((p) => h("option", { value: p.id, selected: c.setup.persona === p.id }, p.label)))),
+        h("label", { class: "row", style: "gap:10px" }, h("input", { type: "checkbox", checked: c.voice, onchange: (e) => { c.voice = e.target.checked; renderCoach(); } }), "Le prospect parle à voix haute"),
+        c.voice ? h("div", { class: "row", style: "flex-wrap:wrap;gap:8px" },
+          h("button", { class: "chip small", type: "button", onclick: () => { c.voice = true; speak("Allô oui ? Bonjour, c’est à quel sujet ?", "neutre", "f"); } }, "Écouter une voix de femme"),
+          h("button", { class: "chip small", type: "button", onclick: () => { c.voice = true; speak("Oui, allô ? J’ai deux minutes, je vous écoute.", "presse", "h"); } }, "Écouter une voix d’homme"),
+          !frVoices().length ? h("span", { class: "hint" }, "Aucune voix française trouvée sur cet appareil : le texte s’affichera seulement.") : null) : null,
+        SR ? h("label", { class: "row", style: "gap:10px" }, h("input", { type: "checkbox", checked: c.handsFree, onchange: (e) => { c.handsFree = e.target.checked; } }), "Mains libres : le micro s’ouvre tout seul quand le prospect a fini de parler")
+          : h("span", { class: "hint" }, "Ce navigateur ne reconnaît pas la voix : tu écriras tes réponses. Sur iPhone, utilise Safari ; sur Android, Chrome."),
+        errorBox,
+        h("div", { class: "row", style: "flex-wrap:wrap;gap:12px" },
+          h("button", { class: "btn", type: "button", disabled: c.busy || left === 0, onclick: coachStart }, c.busy ? "Connexion…" : "Lancer l’appel"),
+          left != null ? h("span", { class: "hint" }, `${left} entraînement${left > 1 ? "s" : ""} restant${left > 1 ? "s" : ""} ce mois-ci pour le groupe (sur ${COACH_LIMIT})`) : null)));
+      return;
+    }
+    const s = c.session, p = PERSONAS.find((x) => x.id === s.persona), o = OBJECTIFS.find((x) => x[0] === s.objectif), n = NIVEAUX.find((x) => x[0] === s.niveau);
+    const head = h("div", { class: "coach-head" },
+      h("div", {}, h("strong", {}, s.company.name), h("div", { class: "hint" }, [s.company.activity, s.company.city].filter(Boolean).join(" · "))),
+      h("div", { class: "hint" }, `Objectif : ${o[1]} · ${n[1]}` + (c.phase === "debrief" ? ` · ${p.label}` : "")));
+    const bubbles = h("div", { class: "coach-log", id: "coach-log", "aria-live": "polite" },
+      c.turns.map((t) => h("div", { class: "bubble " + (t.who === "moi" ? "me" : "them") },
+        h("span", { class: "who" }, t.who === "moi" ? "Toi" : "Prospect" + (t.emotion && t.emotion !== "neutre" ? " · " + t.emotion.replace("presse", "pressé").replace("agace", "agacé").replace("mefiant", "méfiant").replace("interesse", "intéressé").replace("amuse", "amusé") : "")),
+        t.text)),
+      c.busy && c.phase === "call" ? h("div", { class: "bubble them typing" }, "…") : null,
+      c.hungUp && c.phase !== "call" ? h("div", { class: "hint" }, "Le prospect a raccroché.") : null,
+      c.reached ? h("div", { class: "hint" }, "Objectif atteint !") : null);
+    if (c.phase === "call") {
+      const input = h("textarea", { id: "coach-input", class: "input coach-input", rows: "2", placeholder: SR ? "Parle avec le micro, ou écris ici…" : "Écris ta réponse…", onkeydown: (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); coachSend(e.target.value); } } });
+      if (c.retryText) input.value = c.retryText;
+      box.replaceChildren(h("div", { class: "call-card coach-call" }, head, bubbles, errorBox,
+        c.micError ? h("div", { class: "hint" }, c.micError) : null,
+        h("div", { class: "coach-bar" },
+          SR ? h("button", { class: "mic" + (c.listening ? " on" : ""), type: "button", disabled: c.busy, "aria-label": c.listening ? "Arrêter le micro" : "Parler", onclick: () => (c.listening ? stopListening() : (TTS && TTS.cancel(), listen())) }, c.listening ? "■" : "🎤") : null,
+          input,
+          h("button", { class: "btn", type: "button", disabled: c.busy, onclick: () => coachSend($("coach-input").value) }, "Envoyer")),
+        h("div", { class: "row", style: "justify-content:space-between;flex-wrap:wrap;gap:8px" },
+          h("span", { class: "hint" }, c.listening ? "Je t’écoute… parle, puis fais une pause." : SR ? "Appuie sur le micro pour parler." : ""),
+          h("button", { class: "btn ghost", type: "button", disabled: c.busy, onclick: coachEnd }, "Raccrocher et voir le bilan"))));
+      const log = $("coach-log"); if (log) log.scrollTop = log.scrollHeight;
+      if (!c.listening && !c.busy) { const i = $("coach-input"); if (i && matchMedia("(pointer:fine)").matches) i.focus(); }
+      return;
+    }
+    const d = c.debrief;
+    box.replaceChildren(h("div", { class: "call-card coach-debrief" }, head,
+      c.busy ? h("div", { class: "empty" }, "Le coach prépare ton bilan…") : null,
+      d ? h("div", { class: "coach-score" }, h("span", { class: "n" }, `${Math.max(0, Math.min(10, d.note))}/10`), h("span", {}, d.objectif_atteint ? "Objectif atteint" : "Objectif non atteint")) : null,
+      d ? h("p", { style: "margin:0" }, d.resume) : null,
+      d ? h("section", { class: "box" }, h("h4", {}, "Ce qui a bien marché"), h("ul", {}, d.points_forts.map((x) => h("li", {}, x)))) : null,
+      d ? h("section", { class: "box" }, h("h4", {}, "À travailler"), h("ul", {}, d.a_ameliorer.map((x) => h("li", {}, x)))) : null,
+      d && d.meilleure_reponse ? h("section", { class: "box" }, h("h4", {}, "La phrase qui aurait tout changé"), h("p", { class: "hint", style: "margin:0" }, d.meilleure_reponse.moment), h("p", { style: "margin:0" }, "« " + d.meilleure_reponse.proposition + " »")) : null,
+      errorBox,
+      h("details", {}, h("summary", {}, "Revoir la conversation"), bubbles),
+      h("div", { class: "row", style: "gap:12px;flex-wrap:wrap" },
+        h("button", { class: "btn", type: "button", disabled: c.busy, onclick: coachReset }, "Nouvel entraînement"),
+        h("button", { class: "btn ghost", type: "button", onclick: () => { coachReset(); st.view = "appel"; location.hash = "appel"; render(); } }, "Retour aux appels"))));
+  }
+  function coachKeyBox() {
+    if (!SB || st.role !== "admin") return null;
+    const input = h("input", { id: "coach-key", class: "input", type: "password", autocomplete: "off", placeholder: "sk-ant-…" });
+    return h("section", { class: "box" }, h("h4", {}, "Entraînement par l’IA"),
+      h("p", { class: "hint", style: "margin:0" }, st.coach.keyState === "ok" ? "✓ Clé enregistrée : les commerciaux peuvent s’entraîner." : st.coach.keyState === "none" ? "Pas encore de clé : colle ta clé Anthropic pour activer l’entraînement." : "Vérification…"),
+      h("form", { class: "row", style: "flex-wrap:wrap;gap:8px", onsubmit: async (e) => {
+        e.preventDefault(); const v = input.value.trim(); if (!v) return;
+        try { await window.UPTIMISE_SECRET_SET("anthropic_key", v); claudeP = null; st.coach.keyState = "ok"; st.coach.keyMsg = "Clé enregistrée."; }
+        catch (err) { st.coach.keyMsg = "Enregistrement refusé : seul le compte admin principal peut enregistrer la clé."; }
+        renderTeam();
+      } }, input, h("button", { class: "btn", type: "submit" }, "Enregistrer")),
+      st.coach.keyMsg ? h("span", { class: "hint" }, st.coach.keyMsg) : null,
+      h("span", { class: "hint" }, `Limite : ${COACH_LIMIT} entraînements par mois pour tout le groupe${st.coach.used != null ? ` (${st.coach.used} utilisés ce mois-ci)` : ""}.`));
+  }
+  async function coachKeyCheck() {
+    if (!SB || st.coach.keyState) return;
+    st.coach.keyState = "…";
+    try { st.coach.keyState = (await window.UPTIMISE_SECRET("anthropic_key")) ? "ok" : "none"; } catch (e) { st.coach.keyState = "none"; }
+    coachUsage();
+    if (st.view === "equipe") renderTeam();
+  }
+  if (TTS) TTS.onvoiceschanged = () => { st.coach.voices = { f: pickVoice("f"), h: pickVoice("h") }; if (st.view === "coach" && st.coach.phase === "setup") renderCoach(); };
 
   // ------------------------------------------------------------------ Évènements
   const zoneSel = $("zone");
@@ -2367,6 +2766,7 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
   $("tab-appel").addEventListener("click", () => { st.view = "appel"; location.hash = "appel"; render(); });
   $("tab-annuaire").addEventListener("click", () => { st.view = "annuaire"; location.hash = "annuaire"; render(); });
   $("tab-prospects").addEventListener("click", () => { st.view = "prospects"; location.hash = "prospects"; render(); });
+  $("tab-coach").addEventListener("click", () => { st.view = "coach"; location.hash = "coach"; render(); });
   $("tab-equipe").addEventListener("click", () => {
     st.view = "equipe"; location.hash = "equipe"; render();
     if (!st.teamLoadedAt || Date.now() - st.teamLoadedAt > 60000) loadTeam(true);

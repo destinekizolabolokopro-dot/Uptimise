@@ -199,3 +199,9 @@ Il faut avoir lancé `supabase/patch-02-stats.sql` une fois dans Supabase. État
 
 - **Suppression par l'admin** : dans l'espace admin, fiche d'un membre › « Supprimer ce compte » (confirmation en deux temps), ou en bas de l'écran Équipe › « Mon compte » › « Supprimer mon compte ». Elle efface la connexion, la fiche d'équipe, le profil et l'activité ; les fiches prospects suivies sont libérées. À activer une fois dans Supabase › SQL Editor : `supabase/patch-03-delete.sql`.
 - **Réinitialisation complète** : `supabase/reset-site.sql` supprime tous les comptes (admin compris) et les données d'équipe ; le premier compte créé ensuite redevient l'admin. La clé de lecture des numéros est conservée. L'étape 2 (fiches prospects) est facultative.
+
+## Entraînement à l'appel (IA)
+
+Onglet « S'entraîner » (espace commercial et managers) : un dirigeant simulé par Claude décroche, avec son caractère, ses objections et son humeur ; le commercial choisit son objectif (rendez-vous, compte gratuit, UP ONE, se faire connaître, qualifier) et la difficulté. Le prospect parle avec les voix françaises de l'appareil (ton et vitesse selon l'émotion), le commercial répond au micro ou au clavier, puis reçoit une note sur 10 et des conseils.
+- Activation : l'admin colle sa clé Anthropic dans Équipe › Entraînement (rangée dans `app_secrets`, lisible par les membres validés seulement, jamais dans le code du site).
+- Limite : 40 entraînements par mois pour tout le groupe (`training/<mois>`), bilans dans `training/<mois>/sessions`.

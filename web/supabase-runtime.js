@@ -174,6 +174,19 @@
     return JSON.parse(new TextDecoder().decode(plain));
   };
 
+  // Autres secrets (clé de l'IA d'entraînement) : lus par les membres validés, enregistrés par l'admin propriétaire
+  window.UPTIMISE_SECRET = async (name) => {
+    await ready;
+    if (!session) return null;
+    const { data } = await sb.from("app_secrets").select("value").eq("name", name).maybeSingle();
+    return data ? data.value : null;
+  };
+  window.UPTIMISE_SECRET_SET = async (name, value) => {
+    await ready;
+    const { error } = await sb.from("app_secrets").upsert({ name, value });
+    if (error) throw fail(error);
+  };
+
   // ------------------------------------------------------------------ Connexion : e-mail et mot de passe
   const css = `
   .ua-scrim{position:fixed;inset:0;background:var(--scrim,rgba(12,18,34,.45));z-index:50;display:flex;align-items:center;justify-content:center;padding:16px}
