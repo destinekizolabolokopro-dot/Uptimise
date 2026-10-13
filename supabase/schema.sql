@@ -147,6 +147,26 @@ language sql stable security definer set search_path = public as $$
 $$;
 grant execute on function public.wrong_numbers() to anon, authenticated;
 
+-- Pour le robot de nuit : combien de numéros ont été consommés (SIREN et compteurs seulement)
+create or replace function public.pool_stats() returns jsonb
+language sql stable security definer set search_path = public as $$
+  with worked as (
+    select coalesce(data->>'siren', split_part(path, '/', 2)) as siren,
+           data->>'createdAt' as created, data->>'lastCallAt' as last_call
+    from docs
+    where parent = 'prospects'
+      and (coalesce((data->>'attempts')::numeric, 0) > 0
+           or data->>'lastCallAt' is not null
+           or data->>'status' in ('signe', 'perdu', 'rdv', 'proposition', 'mauvais_numero'))
+  )
+  select jsonb_build_object(
+    'worked', coalesce((select jsonb_agg(siren) from worked), '[]'::jsonb),
+    'new14',  (select count(*) from worked where created >= to_char(now() - interval '14 days', 'YYYY-MM-DD"T"HH24:MI:SS')),
+    'calls7', (select count(*) from worked where last_call >= to_char(now() - interval '7 days', 'YYYY-MM-DD"T"HH24:MI:SS'))
+  )
+$$;
+grant execute on function public.pool_stats() to anon, authenticated;
+
 -- Temps réel : la page est prévenue de chaque changement
 do $$ begin
   alter publication supabase_realtime add table public.docs;

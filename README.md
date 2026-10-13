@@ -179,3 +179,18 @@ Mise en ligne (une seule fois) : sur GitHub, ouvre **Settings → Pages**. Dans 
 **Deploy from a branch**, la branche `claude/business-prospecting-site-3p55r9` et le dossier `/docs`, puis
 **Save**. Le site est publié à l'adresse https://destinekizolabolokopro-dot.github.io/Uptimise/ et la mise à jour
 de nuit y pousse chaque jour le nouvel annuaire.
+
+## Mise à jour de nuit (GitHub Actions)
+
+`.github/workflows/nuit.yml` tourne chaque nuit (et à la main : onglet Actions › Run workflow) :
+
+1. appelle Supabase (le projet gratuit ne se met jamais en pause) ;
+2. retire du site les numéros signalés « Mauvais numéro » ;
+3. **règle la recherche Google sur l'activité de l'équipe** : stock = numéros vérifiés pas encore appelés,
+   rythme = nouvelles entreprises appelées par jour (14 derniers jours), objectif = 3 semaines d'avance (300 minimum).
+   Stock suffisant → aucune recherche, aucun coût, l'équipe utilise les numéros déjà gardés.
+   Stock trop bas → il cherche juste ce qu'il faut, dans la limite du budget mensuel.
+
+Réglages : secrets `PHONES_KEY` et `GOOGLE_MAPS_API_KEY` (Settings › Secrets and variables › Actions),
+variables facultatives `GOOGLE_MONTHLY_BUDGET` (dollars, 60 par défaut) et `GOOGLE_NIGHT_CAP` (recherches max par nuit, 400 par défaut).
+Il faut avoir lancé `supabase/patch-02-stats.sql` une fois dans Supabase. État du robot : `data/searched.json`, `data/usage.json`.
