@@ -1039,8 +1039,8 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     const seen = new Set();
     let total = 0;
     for (const c of st.companies) {
-      if (seen.has(c.siren)) continue; seen.add(c.siren);
-      if (callable(c) && inScope(c, scope)) total++;
+      if (seen.has(c.siren) || !callable(c) || !inScope(c, scope)) continue;
+      seen.add(c.siren); total++;
     }
     const left = q.list.length + (st.current ? 1 : 0) + (st.nextUp ? 1 : 0);
     return { total, left };
@@ -1053,8 +1053,9 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
     const scope = callScope();
     const taken = takenPhones(), inQueue = new Set();
     for (const c of st.companies) {
-      if (seen.has(c.siren)) continue; seen.add(c.siren);
-      if (!inScope(c, scope)) continue;
+      if (seen.has(c.siren)) continue;
+      if (!inScope(c, scope)) continue; // un autre établissement de la même société peut correspondre : on ne la marque « vue » qu'ici
+      seen.add(c.siren);
       if (c.siren === st.current || c.siren === st.nextUp) continue;
       const p = st.prospects.get(c.siren);
       if (!((p && p.phone) || c.phone)) continue;
