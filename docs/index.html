@@ -2659,6 +2659,7 @@ ${UPTIMIZ_FACTS}`;
   function renderCoach() {
     const c = st.coach, box = $("coach");
     if (!box) return;
+    const prevInput = $("coach-input"), prevVal = prevInput ? prevInput.value : "", hadFocus = !!prevInput && document.activeElement === prevInput;
     const errorBox = c.error ? h("div", { class: "alert", role: "alert" }, c.error) : null;
     if (c.phase === "setup") {
       const chipsRow = (list, key) => h("div", { class: "chips", role: "group" }, list.map(([k, l]) => h("button", { class: "chip small", type: "button", "aria-pressed": String(c.setup[key] === k), onclick: () => { c.setup[key] = k; renderCoach(); } }, l)));
@@ -2697,8 +2698,11 @@ ${UPTIMIZ_FACTS}`;
       c.hungUp && c.phase !== "call" ? h("div", { class: "hint" }, "Le prospect a raccroché.") : null,
       c.reached ? h("div", { class: "hint" }, "Objectif atteint !") : null);
     if (c.phase === "call") {
-      const input = h("textarea", { id: "coach-input", class: "input coach-input", rows: "2", placeholder: SR ? "Parle avec le micro, ou écris ici…" : "Écris ta réponse…", onkeydown: (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); coachSend(e.target.value); } } });
-      if (c.retryText) input.value = c.retryText;
+      const input = h("textarea", { id: "coach-input", class: "input coach-input", rows: "2", placeholder: SR ? "Parle avec le micro, ou écris ici…" : "Écris ta réponse…",
+        // dès qu'il tape, le micro se coupe : sa saisie n'est jamais écrasée par la reconnaissance vocale
+        oninput: () => { if (c.listening) { c.ignoreRec = true; c.listening = false; try { recog && recog.abort(); } catch (e) {} renderCoach(); } },
+        onkeydown: (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); coachSend(e.target.value); } } });
+      input.value = c.retryText || prevVal;
       box.replaceChildren(h("div", { class: "call-card coach-call" }, head, bubbles, errorBox,
         c.micError ? h("div", { class: "hint" }, c.micError) : null,
         h("div", { class: "coach-bar" },
@@ -2709,6 +2713,7 @@ ${UPTIMIZ_FACTS}`;
           h("span", { class: "hint" }, c.listening ? "Je t’écoute… parle, puis fais une pause." : SR ? "Appuie sur le micro pour parler." : ""),
           h("button", { class: "btn ghost", type: "button", disabled: c.busy, onclick: coachEnd }, "Raccrocher et voir le bilan"))));
       const log = $("coach-log"); if (log) log.scrollTop = log.scrollHeight;
+      if (hadFocus) { const i2 = $("coach-input"); if (i2) { i2.focus(); i2.setSelectionRange(i2.value.length, i2.value.length); } }
       if (!c.listening && !c.busy) { const i = $("coach-input"); if (i && matchMedia("(pointer:fine)").matches) i.focus(); }
       return;
     }
