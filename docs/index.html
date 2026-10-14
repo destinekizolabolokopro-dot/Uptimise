@@ -2743,19 +2743,29 @@ ${UPTIMIZ_FACTS}`;
   /** Robot de nuit (GitHub) : l'admin copie la clé des numéros pour la coller dans les secrets GitHub, sans l'afficher. */
   function robotBox() {
     if (!SB || st.role !== "admin") return null;
-    const copy = async () => {
+    // iPhone : la copie doit partir pendant le geste de l'utilisateur, donc on passe une promesse au presse-papiers.
+    // Si l'appareil refuse quand même, la clé s'affiche dans un champ que l'admin copie avec le doigt.
+    const copy = () => {
+      st.robotKey = null; st.robotMsg = "Copie en cours…"; renderTeam();
+      const keyP = window.UPTIMISE_SECRET("phones_key");
+      const fallback = async () => {
+        try { const k = await keyP; if (!k) { st.robotMsg = "Clé introuvable dans le coffre."; } else { st.robotKey = k; st.robotMsg = "Appuie longtemps sur la clé ci-dessous, puis « Tout sélectionner » et « Copier »."; } }
+        catch (e) { st.robotMsg = "Impossible de lire la clé. Vérifie ta connexion."; }
+        renderTeam();
+        const f = $("robot-key"); if (f) { f.focus(); f.select(); }
+      };
       try {
-        const k = await window.UPTIMISE_SECRET("phones_key");
-        if (!k) { st.robotMsg = "Clé introuvable dans le coffre."; renderTeam(); return; }
-        await navigator.clipboard.writeText(k);
-        st.robotMsg = "Clé copiée. Colle-la dans GitHub comme secret PHONES_KEY.";
-      } catch (e) { st.robotMsg = "La copie a échoué sur cet appareil. Réessaie depuis Safari ou Chrome."; }
-      renderTeam();
+        if (navigator.clipboard && window.ClipboardItem) {
+          navigator.clipboard.write([new ClipboardItem({ "text/plain": keyP.then((k) => { if (!k) throw new Error("none"); return new Blob([k], { type: "text/plain" }); }) })])
+            .then(() => { st.robotMsg = "Clé copiée. Colle-la dans GitHub comme secret PHONES_KEY."; renderTeam(); }, fallback);
+        } else fallback();
+      } catch (e) { fallback(); }
     };
     return h("section", { class: "box" }, h("h4", {}, "Robot de nuit"),
       h("p", { class: "hint", style: "margin:0" }, "Pour que la mise à jour de nuit retire les mauvais numéros et en cherche de nouveaux, GitHub a besoin de deux secrets : PHONES_KEY (bouton ci-dessous) et GOOGLE_MAPS_API_KEY (ta clé Google)."),
       h("div", { class: "row", style: "flex-wrap:wrap;gap:8px" }, h("button", { class: "btn-outline", type: "button", onclick: copy }, "Copier la clé des numéros")),
-      st.robotMsg ? h("span", { class: "hint" }, st.robotMsg) : null);
+      st.robotMsg ? h("span", { class: "hint", role: "status" }, st.robotMsg) : null,
+      st.robotKey ? h("input", { id: "robot-key", class: "input", type: "text", readonly: true, value: st.robotKey, "aria-label": "Clé des numéros", onfocus: (e) => e.target.select(), onclick: (e) => e.target.select() }) : null);
   }
   async function coachKeyCheck() {
     if (!SB || st.coach.keyState) return;
